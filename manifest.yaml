@@ -1,0 +1,118 @@
+---
+apiVersion: v1
+kind: Template
+metadata:
+  annotations:
+    description: "${DESC}"
+  labels:
+    product: "${PRODUCT_NAME}"
+    app: "${SERVICE_NAME}"
+  name: "${SERVICE_NAME}-${IMPL_NAME}"
+objects:
+- apiVersion: extensions/v1beta1
+  kind: Deployment
+  metadata:
+    name: "${SERVICE_NAME}-${IMPL_NAME}"
+    labels:
+      product: "${PRODUCT_NAME}"
+      app: "${SERVICE_NAME}"
+      impl: "${IMPL_NAME}"
+  spec:
+    replicas: '1'
+    template:
+      metadata:
+        labels:
+          product: "${PRODUCT_NAME}"
+          app: "${SERVICE_NAME}"
+          impl: "${IMPL_NAME}"
+      spec:
+        imagePullSecrets:
+        - name: regcred
+        containers:
+        - name: "${SERVICE_NAME}-${IMPL_NAME}"
+          image: "${IMAGE_NAME}"
+          ports:
+          - name: web
+            containerPort: ${PORT}
+            protocol: TCP
+          env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: KATHRA_APPMANAGER_CODEGEN_URL
+            valueFrom:
+              configMapKeyRef:
+                name: appmanager-config
+                key: KATHRA_APPMANAGER_CODEGEN_URL
+          - name: KATHRA_APPMANAGER_SOURCEMANAGER_URL
+            valueFrom:
+              configMapKeyRef:
+                name: appmanager-config
+                key: KATHRA_APPMANAGER_SOURCEMANAGER_URL
+          - name: KATHRA_APPMANAGER_PIPELINEMANAGER_URL
+            valueFrom:
+              configMapKeyRef:
+                name: appmanager-config
+                key: KATHRA_APPMANAGER_PIPELINEMANAGER_URL
+          - name: KATHRA_APPMANAGER_RESOURCEMANAGER_URL
+            valueFrom:
+              configMapKeyRef:
+                name: appmanager-config
+                key: KATHRA_APPMANAGER_RESOURCEMANAGER_URL
+          - name: IMAGE_REGISTRY_HOST
+            valueFrom:
+              configMapKeyRef:
+                key: IMAGE_REGISTRY_HOST
+                name: appmanager-config
+          - name: KATHRA_APPMANAGER_DELETE_ZIP_FILE
+            valueFrom:
+              configMapKeyRef:
+                name: appmanager-config
+                key: KATHRA_APPMANAGER_DELETE_ZIP_FILE
+          - name: KEYCLOAK_AUTH_URL
+            valueFrom:
+              configMapKeyRef:
+                name: keycloak-config
+                key: KEYCLOAK_AUTH_URL
+          - name: KEYCLOAK_REALM
+            valueFrom:
+              configMapKeyRef:
+                name: keycloak-config
+                key: KEYCLOAK_REALM
+          - name: KEYCLOAK_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                name: kathra-keycloak-secret
+                key: KEYCLOAK_CLIENT_ID
+          - name: KEYCLOAK_CLIENT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: kathra-keycloak-secret
+                key: KEYCLOAK_CLIENT_SECRET
+          resources:
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: "${SERVICE_NAME}"
+    labels:
+      product: "${PRODUCT_NAME}"
+      app: "${SERVICE_NAME}"
+      expose: true
+  spec:
+    ports:
+    - protocol: TCP
+      port: 80
+      targetPort: ${PORT}
+    selector:
+      product: "${PRODUCT_NAME}"
+      app: "${SERVICE_NAME}"
+    type: ClusterIP
+    sessionAffinity: None
