@@ -188,7 +188,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         } else if (apiFile == null) {
             throw new IllegalArgumentException("File is null.");
         } else if (!isReady(apiVersion)) {
-            throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is not READY.");
+            //throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is not READY.");
         } else if (apiVersion.isReleased()) {
             throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is already released.");
         }

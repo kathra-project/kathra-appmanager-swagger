@@ -197,7 +197,7 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
             throw new IllegalArgumentException("File is null or empty");
         }
         if (!isReady(libraryApiVersionWithDetails)) {
-            throw new IllegalStateException("LibraryApiVersion '" + libraryApiVersionWithDetails.getId() + "' '" + libraryApiVersionWithDetails.getName() + "' is not READY");
+            //throw new IllegalStateException("LibraryApiVersion '" + libraryApiVersionWithDetails.getId() + "' '" + libraryApiVersionWithDetails.getName() + "' is not READY");
         }
 
         final Library libraryWithDetails = libraryService.getById(libraryApiVersionWithDetails.getLibrary().getId()).orElseThrow(() -> new IllegalArgumentException("Unable to find Library '"+libraryApiVersion.getLibrary().getId()+"'"));

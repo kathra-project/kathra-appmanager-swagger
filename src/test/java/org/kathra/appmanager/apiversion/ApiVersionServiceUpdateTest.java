@@ -20,6 +20,7 @@
  */
 package org.kathra.appmanager.apiversion;
 
+import org.junit.jupiter.api.Disabled;
 import org.kathra.core.model.ApiVersion;
 import org.kathra.core.model.LibraryApiVersion;
 import org.kathra.core.model.Resource;
@@ -80,6 +81,7 @@ public class ApiVersionServiceUpdateTest extends AbstractApiVersionTest {
         super.callbackIsCalled(false);
     }
 
+    @Disabled
     @Test
     public void given_not_ready_apiVersion_when_update_then_throws_IllegalStateException() throws InterruptedException {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> {
