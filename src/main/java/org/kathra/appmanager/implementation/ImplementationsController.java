@@ -94,6 +94,11 @@ public class ImplementationsController implements ImplementationsService {
     }
 
     @Override
+    public Implementation deleteImplementationById(String implementationId) throws Exception {
+        return null;
+    }
+
+    @Override
     public List<Implementation> getComponentImplementations(String componentId) throws Exception {
 
         // gets all the necessary data with one calls by resource type

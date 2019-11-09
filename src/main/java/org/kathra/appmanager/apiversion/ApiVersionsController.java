@@ -71,6 +71,11 @@ public class ApiVersionsController implements ApiVersionsService {
     }
 
     @Override
+    public ApiVersion deleteApiVersion(String apiVersionId) throws Exception {
+        return null;
+    }
+
+    @Override
     public FileDataSource getApiFile(String apiVersionId) throws Exception {
 
         ApiVersion apiVersion = apiVersionService.getById(apiVersionId).orElseThrow(() -> new NotFoundException("ApiVersion not found"));
