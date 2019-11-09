@@ -21,6 +21,7 @@
 package org.kathra.appmanager.apiversion;
 
 import org.kathra.appmanager.component.ComponentService;
+import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.libraryapiversion.LibraryApiVersionService;
 import org.kathra.appmanager.service.AbstractServiceTest;
@@ -57,6 +58,8 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
     protected LibraryService libraryService;
     @Mock
     protected KathraSessionManager kathraSessionManager;
+    @Mock
+    protected ImplementationVersionService implementationVersionService;
 
     protected ApiVersionService underTest;
     protected String COMPONENT_ID;
@@ -88,7 +91,8 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
         Mockito.reset(libraryApiVersionService);
         Mockito.reset(sourceRepositoryService);
         Mockito.reset(libraryService);
-        underTest = new ApiVersionService(resourceManager, componentService, openApiParser, libraryService, libraryApiVersionService, sourceRepositoryService, kathraSessionManager);
+        Mockito.reset(implementationVersionService);
+        underTest = new ApiVersionService(resourceManager, componentService, openApiParser, libraryService, libraryApiVersionService, sourceRepositoryService, kathraSessionManager, implementationVersionService);
 
         Mockito.doAnswer(invocationOnMock -> {
             String id = invocationOnMock.getArgument(0);

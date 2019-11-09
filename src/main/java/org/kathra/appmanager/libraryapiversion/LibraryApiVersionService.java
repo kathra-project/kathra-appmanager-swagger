@@ -366,4 +366,18 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
             return false;
         }
     }
+
+    public void delete(LibraryApiVersion libApiVersion, boolean purge) throws ApiException {
+        try {
+            LibraryApiVersion libApiVersionToDeleted = resourceManager.getLibraryApiVersion(libApiVersion.getId());
+            if (isDeleted(libApiVersionToDeleted)) {
+                return;
+            }
+            resourceManager.deleteLibraryApiVersion(libApiVersionToDeleted.getId());
+            libApiVersion.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(libApiVersion, e);
+            throw e;
+        }
+    }
 }

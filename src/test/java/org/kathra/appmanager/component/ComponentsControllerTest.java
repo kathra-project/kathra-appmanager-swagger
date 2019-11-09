@@ -116,6 +116,15 @@ public class ComponentsControllerTest {
     }
 
     @Test
+    public void given_id_when_delete_then_work() throws Exception {
+        Component returnedByService = new Component().id(COMPONENT_ID).status(Resource.StatusEnum.READY).name("new component").putMetadataItem("groupPath", "group name");
+        Mockito.when(componentService.getById(returnedByService.getId())).thenReturn(Optional.of(returnedByService));
+        underTest.deleteComponentById(returnedByService.getId());
+        Mockito.verify(componentService).delete(returnedByService, true, true);
+        Assertions.assertEquals(Resource.StatusEnum.DELETED, returnedByService.getStatus());
+    }
+
+    @Test
     public void given_component_when_create_then_return_component_with_id() throws Exception {
 
         Component input = new Component().name("new component").title("title1").description("desc1").putMetadataItem("groupPath", "group name");

@@ -21,6 +21,7 @@
 package org.kathra.appmanager.sourcerepository;
 
 import com.google.common.collect.ImmutableList;
+import org.junit.jupiter.api.BeforeEach;
 import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.service.AbstractServiceTest;
@@ -69,28 +70,40 @@ public class SourceRepositoryServiceAbstractTest extends AbstractServiceTest {
     String repositoryPathExpected;
     String[] deploysKeys;
 
+    @BeforeEach
+    public void setUp() {
+        Mockito.reset(sourceManager);
+        Mockito.reset(resourceManager);
+        Mockito.reset(libraryService);
+        Mockito.reset(componentService);
+        callback = Mockito.mock(Runnable.class);
+        underTest = new SourceRepositoryService(resourceManager, sourceManager, componentService, libraryService, kathraSessionManager);
+        underTest.setLibraryService(libraryService);
+        underTest.setResourceManager(resourceManager);
+        underTest.setSourceManagerClient(sourceManager);
+        sourceRepositoryDb = getSourceRepositoryForDb();
+    }
 
-
-    protected SourceRepository getSourceRepositoryForDb() {
+    static public SourceRepository getSourceRepositoryForDb() {
         return new SourceRepository().id(UUID.randomUUID().toString())
                 .name(NAME)
                 .path(REPOSITORY_PATH)
                 .status(Resource.StatusEnum.PENDING);
     }
 
-    protected void sourceRepositoryIsPending(String id) throws ApiException {
+    public void sourceRepositoryIsPending(String id) throws ApiException {
         Optional<SourceRepository> sourceRepositoryError = underTest.getById(id);
         Assertions.assertTrue(sourceRepositoryError.isPresent());
         Assertions.assertEquals(Resource.StatusEnum.PENDING, sourceRepositoryError.get().getStatus());
     }
-    protected void sourceRepositoryIsError(String id) throws ApiException {
+    public void sourceRepositoryIsError(String id) throws ApiException {
         Optional<SourceRepository> sourceRepositoryError = underTest.getById(id);
         Assertions.assertTrue(sourceRepositoryError.isPresent());
         Assertions.assertEquals(Resource.StatusEnum.ERROR, sourceRepositoryError.get().getStatus());
     }
 
 
-    protected SourceRepository getSourceRepositoryFromSourceManager(SourceRepository sourceRepositoryDb) {
+    public SourceRepository getSourceRepositoryFromSourceManager(SourceRepository sourceRepositoryDb) {
         return new SourceRepository().id(sourceRepositoryDb.getId())
                 .path(REPOSITORY_PATH)
                 .httpUrl(HTTP_URL)

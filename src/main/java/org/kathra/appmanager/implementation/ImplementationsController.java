@@ -34,6 +34,7 @@ import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.ApiVersion;
 import org.kathra.core.model.Implementation;
 import org.kathra.core.model.ImplementationVersion;
+import org.kathra.core.model.Resource;
 import org.kathra.utils.KathraException;
 import org.apache.camel.cdi.ContextName;
 import org.apache.commons.lang3.StringUtils;
@@ -95,7 +96,9 @@ public class ImplementationsController implements ImplementationsService {
 
     @Override
     public Implementation deleteImplementationById(String implementationId) throws Exception {
-        return null;
+        Implementation implementation = implementationService.getById(implementationId).orElseThrow(() -> new KathraException("Unable to find Implementation '"+implementationId+"'", null, KathraException.ErrorCode.NOT_FOUND));
+        implementationService.delete(implementation, true);
+        return implementation.status(Resource.StatusEnum.DELETED);
     }
 
     @Override

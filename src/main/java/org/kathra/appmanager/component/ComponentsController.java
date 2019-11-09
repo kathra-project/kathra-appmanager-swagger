@@ -30,6 +30,7 @@ import org.kathra.core.model.Component;
 import javassist.NotFoundException;
 import org.apache.camel.cdi.ContextName;
 import org.apache.commons.lang3.StringUtils;
+import org.kathra.core.model.Resource;
 
 import javax.inject.Named;
 import java.util.List;
@@ -70,7 +71,11 @@ public class ComponentsController implements ComponentsService {
 
     @Override
     public Component deleteComponentById(String componentId) throws Exception {
-        return null;
+        if (StringUtils.isEmpty(componentId)) throw new IllegalArgumentException("componentId must be specified");
+        // Retrieving a component
+        Component component = componentService.getById(componentId).orElseThrow(() -> new NotFoundException("Component not found"));
+        componentService.delete(component, true, true);
+        return component.status(Resource.StatusEnum.DELETED);
     }
 
     @Override

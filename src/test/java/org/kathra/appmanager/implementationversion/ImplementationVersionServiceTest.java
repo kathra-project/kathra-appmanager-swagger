@@ -30,10 +30,7 @@ import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.AbstractServiceTest;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.codegen.client.CodegenClient;
-import org.kathra.core.model.ApiVersion;
-import org.kathra.core.model.Asset;
-import org.kathra.core.model.Implementation;
-import org.kathra.core.model.ImplementationVersion;
+import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.ImplementationVersionsClient;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,40 +50,56 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
     /**
      * Local Variables
      */
-    private ImplementationVersionService underTest;
+    protected ImplementationVersionService underTest;
 
     @Mock
-    private Config config;
+    protected Config config;
     @Mock
-    private ImplementationVersionsClient implementationVersionsClient;
+    protected ImplementationVersionsClient resourceManager;
     @Mock
-    private ComponentService componentService;
+    protected ComponentService componentService;
     @Mock
-    private ApiVersionService apiVersionService;
+    protected ApiVersionService apiVersionService;
     @Mock
-    private ImplementationService implementationService;
+    protected ImplementationService implementationService;
     @Mock
-    private SourceRepositoryService sourceRepositoryService;
+    protected SourceRepositoryService sourceRepositoryService;
     @Mock
-    private CodegenClient codegenClient;
+    protected CodegenClient codegenClient;
     @Mock
-    private PipelineService pipelineService;
+    protected PipelineService pipelineService;
 
     /**
      * Context initialization
      */
-    @BeforeAll
-    static void setUp() {
+    @BeforeEach
+    void setUp() throws Exception {
+        Mockito.reset(resourceManager);
+        Mockito.reset(implementationService);
+        Mockito.reset(sourceRepositoryService);
+        Mockito.reset(componentService);
+        Mockito.reset(codegenClient);
+        Mockito.reset(apiVersionService);
+        Mockito.reset(pipelineService);
+        callback = Mockito.mock(Runnable.class);
+        Mockito.doReturn("my-registry.com").when(config).getImageRegistryHost();
+        underTest = new ImplementationVersionService(this.config, this.resourceManager, apiVersionService, componentService, implementationService, sourceRepositoryService, codegenClient, kathraSessionManager, pipelineService);
     }
+
+
 
     /**
      * Mocks behaviour initialization
      */
     @BeforeEach
     void setUpEach() {
-        this.implementationVersionsClient = Mockito.mock(ImplementationVersionsClient.class);
+        this.resourceManager = Mockito.mock(ImplementationVersionsClient.class);
         Mockito.doReturn("my-registry.com").when(config).getImageRegistryHost();
-        underTest = new ImplementationVersionService(this.config, this.implementationVersionsClient, apiVersionService, componentService, implementationService, sourceRepositoryService, codegenClient, kathraSessionManager, pipelineService);
+        underTest = new ImplementationVersionService(this.config, this.resourceManager, apiVersionService, componentService, implementationService, sourceRepositoryService, codegenClient, kathraSessionManager, pipelineService);
+    }
+
+    public static ImplementationVersion getImplementationVersion() {
+        return new ImplementationVersion().id("implementation-id");
     }
 
     /**
@@ -114,7 +127,7 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
         List<ImplementationVersion> existing = ImmutableList.of(implementationVersion1,implementationVersion1b,implementationVersion2,implementationVersion4);
 
 
-        Mockito.when(implementationVersionsClient.getImplementationVersions()).thenReturn(existing);
+        Mockito.when(resourceManager.getImplementationVersions()).thenReturn(existing);
 
         List<ImplementationVersion> results = underTest.getImplementationVersions(implementations);
 
@@ -139,7 +152,7 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
         List<ImplementationVersion> existing = ImmutableList.of(implementationVersion1,implementationVersion1b,implementationVersion2,implementationVersion4);
 
 
-        Mockito.when(implementationVersionsClient.getImplementationVersions()).thenReturn(existing);
+        Mockito.when(resourceManager.getImplementationVersions()).thenReturn(existing);
 
         List<ImplementationVersion> results = underTest.getImplementationVersions(new ArrayList<>());
 
@@ -162,7 +175,7 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
         List<ImplementationVersion> existing = ImmutableList.of(implementationVersion1,implementationVersion1b,implementationVersion2,implementationVersion4);
 
 
-        Mockito.when(implementationVersionsClient.getImplementationVersions()).thenReturn(existing);
+        Mockito.when(resourceManager.getImplementationVersions()).thenReturn(existing);
 
         List<ImplementationVersion> results = underTest.getImplementationVersions(null);
 
@@ -179,7 +192,7 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
 
         List<Implementation> implementations = ImmutableList.of(implementation1, implementation2, implementation3);
 
-        Mockito.when(implementationVersionsClient.getImplementationVersions()).thenReturn(new ArrayList<>());
+        Mockito.when(resourceManager.getImplementationVersions()).thenReturn(new ArrayList<>());
 
         List<ImplementationVersion> results = underTest.getImplementationVersions(implementations);
 

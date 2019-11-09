@@ -123,4 +123,12 @@ public class ApiVersionsControllerTest {
         Assertions.assertEquals("File source is not present", exception.getMessage());
     }
 
+    @Test
+    public void given_id_when_delete_then_work() throws Exception {
+        ApiVersion apiVersionExpected = new ApiVersion().id("api-version-1");
+        Mockito.doReturn(Optional.of(apiVersionExpected)).when(apiVersionService).getById(Mockito.eq("api-version-1"));
+        ApiVersion apiVersion = underTest.deleteApiVersion("api-version-1");
+        Mockito.verify(apiVersionService).delete(apiVersionExpected, true, true);
+        Assertions.assertEquals(Resource.StatusEnum.DELETED, apiVersion.getStatus());
+    }
 }

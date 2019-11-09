@@ -27,6 +27,7 @@ import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.ApiVersion;
 import org.kathra.core.model.Component;
+import org.kathra.core.model.Resource;
 import org.kathra.core.model.SourceRepository;
 import org.kathra.utils.KathraException;
 import javassist.NotFoundException;
@@ -72,7 +73,9 @@ public class ApiVersionsController implements ApiVersionsService {
 
     @Override
     public ApiVersion deleteApiVersion(String apiVersionId) throws Exception {
-        return null;
+        ApiVersion apiVersion = apiVersionService.getById(apiVersionId).orElseThrow(() -> new NotFoundException("ApiVersion not found"));
+        apiVersionService.delete(apiVersion, true, true);
+        return apiVersion.status(Resource.StatusEnum.DELETED);
     }
 
     @Override

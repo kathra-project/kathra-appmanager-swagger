@@ -21,6 +21,7 @@
 package org.kathra.appmanager.apiversion;
 
 import org.kathra.appmanager.component.ComponentService;
+import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.libraryapiversion.LibraryApiVersionService;
 import org.kathra.appmanager.service.AbstractResourceService;
@@ -57,6 +58,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
     private SourceRepositoryService sourceRepositoryService;
     private LibraryService libraryService;
     private LibraryApiVersionService libraryApiVersionService;
+    private ImplementationVersionService implementationVersionService;
 
     public static final String METADATA_API_GROUP_ID = "artifact-groupId";
     public static final String METADATA_API_ARTIFACT_NAME = "artifact-artifactName";
@@ -78,9 +80,10 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         this.openApiParser = new OpenApiParser();
         this.componentService = service.getService(ComponentService.class);
         this.libraryApiVersionService = service.getService(LibraryApiVersionService.class);
+        this.implementationVersionService = service.getService(ImplementationVersionService.class);
     }
 
-    public ApiVersionService(ApiVersionsClient resourceManager, ComponentService componentService, OpenApiParser openApiParser, LibraryService libraryService, LibraryApiVersionService libraryApiVersionService, SourceRepositoryService sourceRepositoryService, KathraSessionManager kathraSessionManager) {
+    public ApiVersionService(ApiVersionsClient resourceManager, ComponentService componentService, OpenApiParser openApiParser, LibraryService libraryService, LibraryApiVersionService libraryApiVersionService, SourceRepositoryService sourceRepositoryService, KathraSessionManager kathraSessionManager, ImplementationVersionService implementationVersionService) {
         this.componentService = componentService;
         this.resourceManager = resourceManager;
         this.openApiParser = openApiParser;
@@ -88,6 +91,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         this.libraryApiVersionService = libraryApiVersionService;
         this.sourceRepositoryService = sourceRepositoryService;
         super.kathraSessionManager = kathraSessionManager;
+        this.implementationVersionService = implementationVersionService;
     }
 
     public ApiVersion create(String componentId, File apiFile, Runnable callback) throws Exception {
@@ -630,5 +634,48 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
     @Override
     public List<ApiVersion> getAll() throws ApiException {
         return resourceManager.getApiVersions();
+    }
+
+    public void delete(ApiVersion apiVersion, boolean purge, boolean force) throws ApiException {
+
+        try {
+            ApiVersion apiVersionToDeleted = resourceManager.getApiVersion(apiVersion.getId());
+            if (isDeleted(apiVersionToDeleted)) {
+                return;
+            }
+            if (apiVersionToDeleted.getImplementationsVersions().size() > 0 && !force) {
+                throw new IllegalStateException("ApiVersion "+apiVersionToDeleted.getId()+" is used by some versions of implementations, delete its versions implementations before");
+            }
+            final AtomicReference<ApiException> exceptionFound = new AtomicReference<>();
+            final Session session = kathraSessionManager.getCurrentSession();
+            apiVersionToDeleted.getImplementationsVersions().parallelStream().forEach(implementationVersion -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    implementationVersionService.delete(implementationVersion, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+            apiVersionToDeleted.getLibrariesApiVersions().parallelStream().forEach(libApiVersion -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    libraryApiVersionService.delete(libApiVersion, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+            resourceManager.deleteApiVersion(apiVersionToDeleted.getId());
+            apiVersion.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(apiVersion, e);
+            throw e;
+        }
+
     }
 }

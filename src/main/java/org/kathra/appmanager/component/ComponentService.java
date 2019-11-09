@@ -22,8 +22,10 @@ package org.kathra.appmanager.component;
 
 import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.group.GroupService;
+import org.kathra.appmanager.implementation.ImplementationService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.service.AbstractResourceService;
+import org.kathra.appmanager.service.ImplementationsService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
@@ -38,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -59,6 +62,7 @@ public class ComponentService extends AbstractResourceService<Component> {
     private LibraryService libraryService;
     private ComponentsClient componentsClient;
     private ApiVersionService apiVersionService;
+    private ImplementationService implementationService;
 
     private Logger logger = LoggerFactory.getLogger(ComponentService.class);
 
@@ -73,10 +77,12 @@ public class ComponentService extends AbstractResourceService<Component> {
         this.libraryService =  service.getService(LibraryService.class);
         this.groupsService = service.getService(GroupService.class);
         this.apiVersionService = service.getService(ApiVersionService.class);
+        this.implementationService = service.getService(ImplementationService.class);
     }
 
-    public ComponentService(ComponentsClient componentsClient, SourceRepositoryService sourceRepositoryService, ApiVersionService apiVersionService, LibraryService libraryService, GroupService groupsService, KathraSessionManager kathraSessionManager) {
+    public ComponentService(ComponentsClient componentsClient, SourceRepositoryService sourceRepositoryService, ApiVersionService apiVersionService, LibraryService libraryService, GroupService groupsService, KathraSessionManager kathraSessionManager, ImplementationService implementationService) {
         this.componentsClient = componentsClient;
+        this.implementationService = implementationService;
         this.sourceRepositoryService = sourceRepositoryService;
         this.libraryService = libraryService;
         this.groupsService = groupsService;
@@ -159,6 +165,64 @@ public class ComponentService extends AbstractResourceService<Component> {
             });
             return componentAdded;
         } catch(Exception e) {
+            manageError(component, e);
+            throw e;
+        }
+    }
+
+
+    public void delete(Component component, boolean force, boolean purge) throws ApiException {
+        Component componentToDeleted = componentsClient.getComponent(component.getId());
+        if (isDeleted(componentToDeleted)) {
+            return;
+        }
+        if (componentToDeleted.getImplementations().size() > 0 && !force) {
+            throw new IllegalStateException("Component "+component.getId()+" contains implementations, delete its implementations before");
+        }
+        try {
+            final AtomicReference<ApiException> exceptionFound = new AtomicReference<>();
+            final Session session = kathraSessionManager.getCurrentSession();
+            componentToDeleted.getImplementations().parallelStream().forEach(implementation -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    implementationService.delete(implementation, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+
+            componentToDeleted.getVersions().parallelStream().forEach(apiVersion -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    apiVersionService.delete(apiVersion, force, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+            if (componentToDeleted.getApiRepository() != null){
+                sourceRepositoryService.delete(componentToDeleted.getApiRepository(), purge);
+            }
+            componentToDeleted.getLibraries().parallelStream().forEach(library -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    libraryService.delete(library, force, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+
+            componentsClient.deleteComponent(componentToDeleted.getId());
+            component.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
             manageError(component, e);
             throw e;
         }
@@ -284,6 +348,5 @@ public class ComponentService extends AbstractResourceService<Component> {
     public List<Component> getAll() throws ApiException {
         return componentsClient.getComponents();
     }
-
 
 }
