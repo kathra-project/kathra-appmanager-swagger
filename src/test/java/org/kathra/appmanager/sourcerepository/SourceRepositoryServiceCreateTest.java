@@ -52,16 +52,7 @@ public class SourceRepositoryServiceCreateTest extends SourceRepositoryServiceAb
 
     @BeforeEach
     public void setUp() {
-        Mockito.reset(sourceManager);
-        Mockito.reset(resourceManager);
-        Mockito.reset(libraryService);
-        Mockito.reset(componentService);
-        callback = Mockito.mock(Runnable.class);
-        underTest = new SourceRepositoryService(resourceManager, sourceManager, componentService, libraryService, kathraSessionManager);
-        underTest.setLibraryService(libraryService);
-        underTest.setResourceManager(resourceManager);
-        underTest.setSourceManagerClient(sourceManager);
-        sourceRepositoryDb = getSourceRepositoryForDb();
+        super.setUp();
     }
 
 

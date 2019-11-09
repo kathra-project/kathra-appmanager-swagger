@@ -56,6 +56,9 @@ public abstract class AbstractResourceService<X extends Resource> {
     public boolean isError(Resource resource) {
         return resource != null && resource.getStatus() != null && resource.getStatus().equals(Resource.StatusEnum.ERROR);
     }
+    public boolean isDeleted(Resource resource) {
+        return resource != null && resource.getStatus() != null && resource.getStatus().equals(Resource.StatusEnum.DELETED);
+    }
     public void throwExceptionIfError(Resource resource) {
         if (isError(resource)) {
             throw new IllegalStateException("Resource "+resource.getClass().getSimpleName()+" "+resource.getId()+" has status error");

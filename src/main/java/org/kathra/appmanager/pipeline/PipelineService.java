@@ -334,4 +334,23 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
     public List<Build> getBuildsByBranch(Pipeline pipeline, String branch) throws ApiException {
         return pipelineManagerClient.getBuilds(pipeline.getProviderId(), branch, null);
     }
+
+    public void delete(Pipeline pipeline, boolean purge) throws ApiException {
+        try {
+            Pipeline pipelineToDeleted = resourceManager.getPipeline(pipeline.getId());
+            if (isDeleted(pipelineToDeleted)) {
+                return;
+            }
+
+            if (purge) {
+                pipelineManagerClient.deletePipeline(pipeline.getPath());
+            }
+
+            resourceManager.deletePipeline(pipelineToDeleted.getId());
+            pipeline.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(pipeline, e);
+            throw e;
+        }
+    }
 }

@@ -52,8 +52,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
-public class ImplementationsControllerTest extends AbstractImplementationTest {
+public class ImplementationsControllerTest {
 
+
+    public final static String IMPL_ID = "implementation-id";
+    public final static String IMPL_NAME = "implementation-name";
 
     ImplementationsController underTest;
 
@@ -79,8 +82,8 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
 
     @Test
     public void given_existing_id_when_getImplementation_then_works() throws Exception {
-        Implementation implExpected = super.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Mockito.doReturn(Optional.of(implExpected)).when(implementationService).getById(Mockito.eq(IMPL_ID));
+        Implementation implExpected = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Mockito.doReturn(Optional.of(implExpected)).when(implementationService).getById(Mockito.eq(ImplementationServiceTest.IMPL_ID));
         List<ImplementationVersion> implementationVersions = ImmutableList.of(new ImplementationVersion().implementation(implExpected));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(implExpected))).thenReturn(implementationVersions);
         Implementation implExpectedWithVersions = getImplementation().versions(implementationVersions);
@@ -110,7 +113,7 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
 
     @Test
     public void given_nominal_when_createImplementation_then_works() throws Exception {
-        Implementation expected = super.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation expected = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
         Mockito.doReturn(expected).when(implementationService).create(Mockito.eq("newimpl"), Mockito.eq(Implementation.LanguageEnum.JAVA), Mockito.argThat(apiV -> apiV.getId().equals("api-version-id")),Mockito.any());
         Implementation impl = underTest.createImplementation(new ImplementationParameters().language("JAVA").name("newimpl").apiVersion(new ApiVersion().id("api-version-id")));
         Assertions.assertEquals(expected, impl);
@@ -119,8 +122,8 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
     @Test
     public void when_getImplementations_then_return_items() throws Exception {
 
-        Implementation item1 = generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation item2 = generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation item1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation item2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getAll()).thenReturn(ImmutableList.of(item1, item2));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(item1, item2))).thenReturn(Collections.emptyList());
@@ -145,8 +148,8 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
     @Test
     public void when_getImplementations_then_return_items_with_versions() throws Exception {
 
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getAll()).thenReturn(ImmutableList.of(implem1, implem2));
 
@@ -191,8 +194,8 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
 
     @Test
     public void given_componentId_when_getImplementations_then_return_items_without_versions() throws Exception {
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getComponentImplementations("comp1")).thenReturn(ImmutableList.of(implem1, implem2));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(implem1, implem2))).thenReturn(Collections.emptyList());
@@ -211,8 +214,8 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
     @Test
     public void given_componentId_when_getImplementations_then_return_items_with_versions() throws Exception {
 
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getComponentImplementations("comp1")).thenReturn(ImmutableList.of(implem1, implem2));
 
@@ -248,6 +251,15 @@ public class ImplementationsControllerTest extends AbstractImplementationTest {
         Assertions.assertNotNull(items.get(0).getVersions().get(1).getApiVersion());
         Assertions.assertNotNull(items.get(1).getVersions().get(0).getApiVersion());
 
+    }
+
+    @Test
+    public void given_id_when_delete_then_work() throws Exception {
+        Implementation returnedByService = new Implementation().id("id").status(Resource.StatusEnum.READY).name("new impl").putMetadataItem("groupPath", "group name");
+        Mockito.when(implementationService.getById(returnedByService.getId())).thenReturn(Optional.of(returnedByService));
+        underTest.deleteImplementationById(returnedByService.getId());
+        Mockito.verify(implementationService).delete(returnedByService, true);
+        Assertions.assertEquals(Resource.StatusEnum.DELETED, returnedByService.getStatus());
     }
 
 }

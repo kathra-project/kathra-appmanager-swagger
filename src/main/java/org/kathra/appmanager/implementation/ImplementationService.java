@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import javax.validation.constraints.NotNull;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -314,6 +315,39 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         }
         return implementations;
 
+    }
+
+    public void delete(Implementation implementation, boolean purge) throws ApiException {
+        try {
+            Implementation implementationToDelete = resourceManager.getImplementation(implementation.getId());
+            if (isDeleted(implementationToDelete)) {
+                return;
+            }
+            final AtomicReference<ApiException> exceptionFound = new AtomicReference<>();
+            final Session session = kathraSessionManager.getCurrentSession();
+            implementationToDelete.getVersions().parallelStream().forEach(version -> {
+                kathraSessionManager.handleSession(session);
+                try {
+                    implementationVersionService.delete(version, purge);
+                } catch (ApiException e) {
+                    exceptionFound.set(e);
+                }
+            });
+            if (exceptionFound.get() != null) {
+                throw exceptionFound.get();
+            }
+            if (implementation.getPipeline() != null) {
+                pipelineService.delete(implementation.getPipeline(), purge);
+            }
+            if (implementation.getSourceRepository() != null) {
+                sourceRepositoryService.delete(implementation.getSourceRepository(), purge);
+            }
+            resourceManager.deleteImplementation(implementation.getId());
+            implementation.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(implementation, e);
+            throw e;
+        }
     }
 }
 

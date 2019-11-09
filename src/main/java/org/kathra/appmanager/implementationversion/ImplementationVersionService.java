@@ -262,4 +262,18 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
         implementationVersionsClient.updateImplementationVersionAttributes(implementationVersion.getId(), new ImplementationVersion().metadata(implementationVersion.getMetadata()));
         return build;
     }
+
+    public void delete(ImplementationVersion version, boolean purge) throws ApiException {
+        try {
+            ImplementationVersion versionToDelete = implementationVersionsClient.getImplementationVersion(version.getId());
+            if (isDeleted(versionToDelete)) {
+                return;
+            }
+            implementationVersionsClient.deleteImplementationVersion(versionToDelete.getId());
+            version.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(version, e);
+            throw e;
+        }
+    }
 }

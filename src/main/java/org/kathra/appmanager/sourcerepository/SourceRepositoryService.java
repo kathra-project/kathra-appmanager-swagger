@@ -256,4 +256,21 @@ public class SourceRepositoryService extends AbstractResourceService<SourceRepos
         checkSrcRepo(sourceRepository);
         return sourceManagerClient.getBranches(sourceRepository.getPath());
     }
+
+    public void delete(SourceRepository sourceRepository, boolean purge) throws ApiException {
+        try {
+            SourceRepository sourceRepositoryToDeleted = resourceManager.getSourceRepository(sourceRepository.getId());
+            if (isDeleted(sourceRepositoryToDeleted)) {
+                return;
+            }
+            if (purge) {
+                sourceManagerClient.deleteSourceRepository(sourceRepositoryToDeleted.getPath());
+            }
+            resourceManager.deleteSourceRepository(sourceRepository.getId());
+            sourceRepository.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(sourceRepository, e);
+            throw e;
+        }
+    }
 }

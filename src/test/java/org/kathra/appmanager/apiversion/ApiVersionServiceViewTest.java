@@ -22,6 +22,7 @@ package org.kathra.appmanager.apiversion;
 
 import com.google.common.collect.ImmutableList;
 import org.kathra.appmanager.component.ComponentService;
+import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.libraryapiversion.LibraryApiVersionService;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
@@ -64,6 +65,8 @@ public class ApiVersionServiceViewTest {
     private LibraryService libraryService;
     @Mock
     private KathraSessionManager kathraSessionManager;
+    @Mock
+    private ImplementationVersionService implementationVersionService;
 
     private ApiVersionService underTest;
 
@@ -77,7 +80,8 @@ public class ApiVersionServiceViewTest {
         Mockito.reset(libraryApiVersionService);
         Mockito.reset(sourceRepositoryService);
         Mockito.reset(libraryService);
-        underTest = new ApiVersionService(resourceManager, componentService, openApiParser, libraryService, libraryApiVersionService, sourceRepositoryService, kathraSessionManager);
+        Mockito.reset(implementationVersionService);
+        underTest = new ApiVersionService(resourceManager, componentService, openApiParser, libraryService, libraryApiVersionService, sourceRepositoryService, kathraSessionManager, implementationVersionService);
     }
 
     @Test

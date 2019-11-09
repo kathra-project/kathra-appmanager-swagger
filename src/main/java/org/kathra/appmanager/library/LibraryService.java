@@ -255,4 +255,24 @@ public class LibraryService extends AbstractResourceService<Library> {
     public List<Library> getAll() throws ApiException {
         return resourceManager.getLibraries();
     }
+
+    public void delete(Library library, boolean force, boolean purge) throws ApiException {
+        try {
+            Library libraryToDeleted = resourceManager.getLibrary(library.getId());
+            if (isDeleted(libraryToDeleted)) {
+                return;
+            }
+            if (libraryToDeleted.getPipeline() != null){
+                pipelineService.delete(libraryToDeleted.getPipeline(), purge);
+            }
+            if (libraryToDeleted.getSourceRepository() != null){
+                sourceRepositoryService.delete(libraryToDeleted.getSourceRepository(), purge);
+            }
+            resourceManager.deleteLibrary(library.getId());
+            library.status(Resource.StatusEnum.DELETED);
+        } catch (ApiException e) {
+            manageError(library, e);
+            throw e;
+        }
+    }
 }

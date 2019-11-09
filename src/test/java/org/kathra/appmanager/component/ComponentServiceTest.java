@@ -24,8 +24,11 @@ package org.kathra.appmanager.component;
 import com.google.common.collect.ImmutableList;
 import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.group.GroupService;
+import org.kathra.appmanager.implementation.ImplementationService;
+import org.kathra.appmanager.implementation.ImplementationServiceTest;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
+import org.kathra.appmanager.sourcerepository.SourceRepositoryServiceAbstractTest;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.ComponentsClient;
 import org.kathra.utils.ApiException;
@@ -65,20 +68,23 @@ public class ComponentServiceTest {
     Logger logger = LoggerFactory.getLogger(ComponentServiceTest.class);
 
 
-    private ComponentService underTest;
+    protected ComponentService underTest;
 
     @Mock
-    private ComponentsClient resourceManager;
+    protected ComponentsClient resourceManager;
     @Mock
-    private SourceRepositoryService sourceRepositoryService;
+    protected SourceRepositoryService sourceRepositoryService;
     @Mock
-    private LibraryService libraryService;
+    protected LibraryService libraryService;
     @Mock
-    private ApiVersionService apiVersionService;
+    protected ApiVersionService apiVersionService;
     @Mock
-    private GroupService groupService;
+    protected GroupService groupService;
     @Mock
-    private KathraSessionManager kathraSessionManager;
+    protected KathraSessionManager kathraSessionManager;
+    @Mock
+    protected ImplementationService implementationService;
+
 
     public static String COMPONENT_ID = "component-id";
     private static String COMPONENT_NAME = "component-name";
@@ -98,7 +104,8 @@ public class ComponentServiceTest {
         Mockito.reset(libraryService);
         Mockito.reset(groupService);
         Mockito.reset(apiVersionService);
-        underTest = new ComponentService(resourceManager, sourceRepositoryService, apiVersionService, libraryService, groupService, kathraSessionManager);
+        Mockito.reset(implementationService);
+        underTest = new ComponentService(resourceManager, sourceRepositoryService, apiVersionService, libraryService, groupService, kathraSessionManager, implementationService);
 
         component = getComponent();
         componentInDb = getComponentWithId();
@@ -519,7 +526,7 @@ public class ComponentServiceTest {
         Assertions.assertEquals("Component already exists", exception.getMessage());
     }
 
-    public Component getComponent() {
+    public static Component getComponent() {
         Component component = new Component();
         component.setName(COMPONENT_NAME);
         component.setDescription("a description");
@@ -529,15 +536,26 @@ public class ComponentServiceTest {
         apiVersion.setVersion("0.0.1");
 
         component.setVersions(ImmutableList.of(apiVersion));
+
         return component;
     }
 
-    public Component getComponentWithId() {
+    public static Component getComponentWithId() {
         Component component = getComponent();
         component.setId(COMPONENT_ID);
         component.putMetadataItem("groupId", GROUP_ID);
         component.putMetadataItem("groupPath", GROUP_PATH);
         component.setLibraries(new ArrayList<>());
+        return component;
+    }
+
+    public static Component getComponentFullyInitialized() {
+        Component component = getComponentWithId();
+        component.setStatus(Resource.StatusEnum.READY);
+        component.setApiRepository(SourceRepositoryServiceAbstractTest.getSourceRepositoryForDb());
+        component.setLibraries(ImmutableList.of(new Library().id("LIB1"), new Library().id("LIB2")));
+        component.setVersions(ImmutableList.of(new ApiVersion().id("1.1.0"), new ApiVersion().id("1.0.0")));
+        component.setImplementations(ImmutableList.of(ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA)));
         return component;
     }
 
