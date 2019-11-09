@@ -69,6 +69,11 @@ public class ComponentsController implements ComponentsService {
     }
 
     @Override
+    public Component deleteComponentById(String componentId) throws Exception {
+        return null;
+    }
+
+    @Override
     public Component getComponentById(String componentId) throws Exception {
         if (StringUtils.isEmpty(componentId)) throw new IllegalArgumentException("componentId must be specified");
 
