@@ -65,7 +65,7 @@ public class PipelineServiceDeleteTest extends PipelineServiceAbstractTest {
         underTest.delete(o, true);
         Assertions.assertEquals(Resource.StatusEnum.DELETED, o.getStatus());
         Mockito.verify(resourceManager).deletePipeline(o.getId());
-        Mockito.verify(pipelineManagerClient).deletePipeline(o.getPath());
+        Mockito.verify(pipelineManagerClient).deletePipeline(o.getProviderId());
     }
 
     @Test
@@ -100,7 +100,7 @@ public class PipelineServiceDeleteTest extends PipelineServiceAbstractTest {
             underTest.delete(o, true);
         });
         Assertions.assertEquals(Resource.StatusEnum.ERROR, o.getStatus());
-        Mockito.verify(pipelineManagerClient).deletePipeline(o.getPath());
+        Mockito.verify(pipelineManagerClient).deletePipeline(o.getProviderId());
     }
 
     @Test
@@ -108,12 +108,12 @@ public class PipelineServiceDeleteTest extends PipelineServiceAbstractTest {
         Pipeline o = getPipeline();
         Mockito.when(resourceManager.getPipeline(o.getId())).thenReturn(o);
         o.setStatus(Resource.StatusEnum.READY);
-        Mockito.doThrow(new ApiException("Internal error")).when(pipelineManagerClient).deletePipeline(o.getPath());
+        Mockito.doThrow(new ApiException("Internal error")).when(pipelineManagerClient).deletePipeline(o.getProviderId());
         assertThrows(ApiException.class, () -> {
             underTest.delete(o, true);
         });
         Assertions.assertEquals(Resource.StatusEnum.ERROR, o.getStatus());
-        Mockito.verify(pipelineManagerClient).deletePipeline(o.getPath());
+        Mockito.verify(pipelineManagerClient).deletePipeline(o.getProviderId());
         Mockito.verify(resourceManager, Mockito.never()).deletePipeline(o.getId());
     }
 }

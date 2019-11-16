@@ -343,7 +343,7 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
             }
 
             if (purge) {
-                pipelineManagerClient.deletePipeline(pipeline.getPath());
+                pipelineManagerClient.deletePipeline(pipelineToDeleted.getProviderId());
             }
 
             resourceManager.deletePipeline(pipelineToDeleted.getId());
