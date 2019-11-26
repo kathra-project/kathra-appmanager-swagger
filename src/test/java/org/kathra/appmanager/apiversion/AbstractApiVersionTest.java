@@ -64,7 +64,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
     protected ApiVersionService underTest;
     protected String COMPONENT_ID;
     protected String SOURCE_REPOSITORY_API_ID;
-    protected long timeoutMax = 4000;
+    protected long timeoutMax = 6000;
 
     protected final static String API_NAME = "apiversion's name";
     protected final static String API_VERSION = "1.0.0";
