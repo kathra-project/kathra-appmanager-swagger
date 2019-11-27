@@ -30,12 +30,13 @@
     <artifactId>kathra-appmanager-swagger</artifactId>
     <packaging>jar</packaging>
     <name>KATHRA :: AppManager :: Swagger</name>
-    <version>1.0.0-RC-SNAPSHOT</version>
+    <version>1.0.0</version>
 
     <parent>
         <groupId>org.kathra</groupId>
         <artifactId>kathra-exec-parent</artifactId>
-        <version>1.0.0-RC-SNAPSHOT</version>
+        <version>1.0.0</version>
+        <relativePath>../kathra-exec-parent</relativePath>
     </parent>
 
     <repositories>
@@ -69,27 +70,27 @@
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-appmanager-interface</artifactId>
-            <version>1.0.0-RC-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-sourcemanager-client</artifactId>
-            <version>1.0.0-RC-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-pipelinemanager-client</artifactId>
-            <version>1.0.0-RC-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-codegen-client</artifactId>
-            <version>1.0.0-RC-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-resourcemanager-client</artifactId>
-            <version>1.0.0-RC-SNAPSHOT</version>
+            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>io.swagger</groupId>
