@@ -112,10 +112,10 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
     @Test
     public void given_implementation_list_when_get_implementationVersion_then_works() throws Exception {
 
-        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA).id("1");
-        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON).id("2");
-        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA).id("3");
-        Implementation implementation4 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON).id("4");
+        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA).id("1");
+        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON).id("2");
+        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA).id("3");
+        Implementation implementation4 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON).id("4");
 
         List<Implementation> implementations = ImmutableList.of(implementation1, implementation2, implementation3);
 
@@ -140,9 +140,9 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
     @Test
     public void given_empty_implementation_list_when_get_implementationVersion_then_works() throws Exception {
 
-        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
-        Implementation implementation4 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
+        Implementation implementation4 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         ImplementationVersion implementationVersion1 = new ImplementationVersion().implementation(implementation1).id("version1");
         ImplementationVersion implementationVersion1b = new ImplementationVersion().implementation(implementation1).id("version1b");
@@ -163,9 +163,9 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
     @Test
     public void given_null_implementation_list_when_get_implementationVersion_then_works() throws Exception {
 
-        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
-        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
+        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         ImplementationVersion implementationVersion1 = new ImplementationVersion().implementation(implementation1).id("version1");
         ImplementationVersion implementationVersion1b = new ImplementationVersion().implementation(implementation1).id("version1b");
@@ -186,9 +186,9 @@ public class ImplementationVersionServiceTest extends AbstractServiceTest {
     @Test
     public void given_implementation_list_when_get_implementationVersion_isempty_then_works() throws Exception {
 
-        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
-        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implementation1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implementation2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
+        Implementation implementation3 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         List<Implementation> implementations = ImmutableList.of(implementation1, implementation2, implementation3);
 

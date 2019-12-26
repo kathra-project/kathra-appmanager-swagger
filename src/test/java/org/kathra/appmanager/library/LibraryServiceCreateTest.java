@@ -96,7 +96,7 @@ public class LibraryServiceCreateTest extends LibraryServiceTest {
     public void given_existing_lib_when_add_then_throws_exception() {
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () ->
         {
-            Library existing = new Library().id("existing").component(getComponent()).type(Library.TypeEnum.MODEL).language(Asset.LanguageEnum.PYTHON);
+            Library existing = new Library().id("existing").component(getComponent()).type(Library.TypeEnum.MODEL).language(Library.LanguageEnum.PYTHON);
             Mockito.when(resourceManager.getLibrary("existing")).thenReturn(existing);
             Mockito.doReturn(Optional.of(getComponent().addLibrariesItem(existing))).when(componentService).getById(Mockito.eq(getComponent().getId()));
             underTest.add(getComponent(), Library.LanguageEnum.PYTHON, Library.TypeEnum.MODEL, null);

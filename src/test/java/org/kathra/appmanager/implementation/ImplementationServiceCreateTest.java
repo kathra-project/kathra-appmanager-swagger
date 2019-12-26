@@ -52,17 +52,17 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
     @Test
     public void given_existing_impl_name_when_create_then_throw_illegalArgException() throws Exception {
         Mockito.doReturn(ImmutableList.of(new Implementation().name(IMPL_NAME))).when(resourceManager).getImplementations();
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA,getApiVersion(),null));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA,getApiVersion(),null));
         Assertions.assertEquals("Implementation's name already exists.", exception.getMessage());
     }
     @Test
     public void given_empty_name_when_create_then_throw_illegalArgException() throws Exception {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create("", Asset.LanguageEnum.JAVA,getApiVersion(),null));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create("", Implementation.LanguageEnum.JAVA,getApiVersion(),null));
         Assertions.assertEquals("Implementation's name is null or empty.", exception.getMessage());
     }
     @Test
     public void given_null_apiVersion_when_create_then_throw_illegalArgException() throws Exception {
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, null,null));
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, null,null));
         Assertions.assertEquals("ApiVersion is null.", exception.getMessage());
     }
     @Test
@@ -73,14 +73,14 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
     @Test
     public void given_apiVersion_not_ready_when_create_then_throw_illegalStateException() throws Exception {
         Mockito.doReturn(Optional.of(getApiVersion().status(Resource.StatusEnum.ERROR))).when(apiVersionService).getById(Mockito.eq(API_VERSION_ID));
-        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA,getApiVersion(),null));
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA,getApiVersion(),null));
         Assertions.assertEquals("ApiVersion 'api-version-id' is not READY", exception.getMessage());
     }
 
     @Test
     public void given_nominal_args_when_create_and_wait_until_ready_then_implementation_is_ready() throws Exception {
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());
@@ -109,7 +109,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
 
         Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(resourceManager).updateImplementationAttributes(Mockito.any(), Mockito.any());
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());
@@ -129,7 +129,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
 
         Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(sourceRepositoryService).create(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());
@@ -149,7 +149,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
 
         Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(pipelineService).create(Mockito.eq(IMPL_NAME), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());
@@ -169,7 +169,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
 
         Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(implementationVersionService).create(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Asset.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());

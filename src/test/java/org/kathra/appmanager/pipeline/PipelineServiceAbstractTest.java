@@ -26,7 +26,7 @@ import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.service.AbstractServiceTest;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
-import org.kathra.pipelinemanager.client.PipelineManagerClient;
+import org.kathra.pipelinemanager.client.PipelinemanagerClient;
 import org.kathra.resourcemanager.client.PipelinesClient;
 import org.kathra.utils.ApiException;
 import org.apache.commons.lang3.StringUtils;
@@ -60,7 +60,7 @@ public class PipelineServiceAbstractTest extends AbstractServiceTest {
     @Mock
     PipelinesClient resourceManager;
     @Mock
-    PipelineManagerClient pipelineManagerClient;
+    PipelinemanagerClient pipelineManagerClient;
     @Mock
     LibraryService libraryService;
     @Mock
@@ -113,9 +113,9 @@ public class PipelineServiceAbstractTest extends AbstractServiceTest {
     }
     protected Library getLibrary(){
         return new Library().id(UUID.randomUUID().toString())
-                .name("component-name - " + Asset.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
+                .name("component-name - " + Library.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
                 .component(new Component().id(getComponent().getId()))
-                .language(Asset.LanguageEnum.PYTHON)
+                .language(Library.LanguageEnum.PYTHON)
                 .type(Library.TypeEnum.MODEL)
                 .sourceRepository(new SourceRepository().id(SRC_ID));
     }

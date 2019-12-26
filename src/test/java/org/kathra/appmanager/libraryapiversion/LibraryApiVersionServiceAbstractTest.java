@@ -114,7 +114,7 @@ public class LibraryApiVersionServiceAbstractTest  extends AbstractServiceTest {
     public Library getLibrary() {
         return new Library().id(LIBRARY_ID)
                 .component(getComponent())
-                .language(Asset.LanguageEnum.JAVA)
+                .language(Library.LanguageEnum.JAVA)
                 .type(Library.TypeEnum.MODEL)
                 .status(Resource.StatusEnum.READY)
                 .sourceRepository(getRepository())

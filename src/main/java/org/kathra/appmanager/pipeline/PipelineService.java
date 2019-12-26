@@ -26,7 +26,7 @@ import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
-import org.kathra.pipelinemanager.client.PipelineManagerClient;
+import org.kathra.pipelinemanager.client.PipelinemanagerClient;
 import org.kathra.resourcemanager.client.PipelinesClient;
 import org.kathra.utils.ApiException;
 import org.kathra.utils.Session;
@@ -47,7 +47,7 @@ import java.util.concurrent.CompletableFuture;
 public class PipelineService extends AbstractResourceService<Pipeline> {
 
     private PipelinesClient resourceManager;
-    private PipelineManagerClient pipelineManagerClient;
+    private PipelinemanagerClient pipelineManagerClient;
     private LibraryService libraryService;
     private SourceRepositoryService sourceRepositoryService;
     private ComponentService componentService;
@@ -66,13 +66,13 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
     public void configure(ServiceInjection serviceInjection) {
         super.configure(serviceInjection);
         this.resourceManager = new PipelinesClient(serviceInjection.getConfig().getResourceManagerUrl(), serviceInjection.getSessionManager());
-        this.pipelineManagerClient = new PipelineManagerClient(serviceInjection.getConfig().getPipelineManagerUrl(), serviceInjection.getSessionManager());
+        this.pipelineManagerClient = new PipelinemanagerClient(serviceInjection.getConfig().getPipelineManagerUrl(), serviceInjection.getSessionManager());
         this.libraryService = serviceInjection.getService(LibraryService.class);
         this.sourceRepositoryService = serviceInjection.getService(SourceRepositoryService.class);
         this.componentService = serviceInjection.getService(ComponentService.class);
     }
 
-    public PipelineService(PipelinesClient resourceManager, PipelineManagerClient pipelineManagerClient, LibraryService libraryService, SourceRepositoryService sourceRepositoryService, KathraSessionManager kathraSessionManager, ComponentService componentService) {
+    public PipelineService(PipelinesClient resourceManager, PipelinemanagerClient pipelineManagerClient, LibraryService libraryService, SourceRepositoryService sourceRepositoryService, KathraSessionManager kathraSessionManager, ComponentService componentService) {
         this.libraryService = libraryService;
         this.pipelineManagerClient = pipelineManagerClient;
         this.resourceManager = resourceManager;

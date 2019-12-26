@@ -160,7 +160,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
         return component;
     }
 
-    private Library getLibrary(Component component, Asset.LanguageEnum language, Library.TypeEnum type) {
+    private Library getLibrary(Component component, Library.LanguageEnum language, Library.TypeEnum type) {
         Pipeline pipeline = new Pipeline().id(UUID.randomUUID().toString()).status(Resource.StatusEnum.READY);
         SourceRepository sourceRepository = new SourceRepository().id(UUID.randomUUID().toString()).status(Resource.StatusEnum.READY);
         Library library = new Library() .component(component)

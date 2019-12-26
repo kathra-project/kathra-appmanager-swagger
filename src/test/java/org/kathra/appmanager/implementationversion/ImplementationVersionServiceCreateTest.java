@@ -153,7 +153,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
             return Mockito.mock(File.class);
         }).when(codegenClient).generateImplementation(Mockito.any(),
                 Mockito.eq(ImplementationServiceCreateTest.IMPL_NAME),
-                Mockito.eq(Asset.LanguageEnum.JAVA.toString()),
+                Mockito.eq(Implementation.LanguageEnum.JAVA.toString()),
                 Mockito.eq(ImplementationServiceCreateTest.IMPL_ARTIFACT_NAME),
                 Mockito.eq(ImplementationServiceCreateTest.COMPONENT_ARTIFACT_GROUP_ID),
                 Mockito.eq(IMPL_VERSION_VERSION));
@@ -329,7 +329,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
 
 
     private Implementation getImplementation() {
-        return ImplementationServiceCreateTest.generateImplementationExample(Asset.LanguageEnum.JAVA).component(ImplementationServiceCreateTest.getComponent());
+        return ImplementationServiceCreateTest.generateImplementationExample(Implementation.LanguageEnum.JAVA).component(ImplementationServiceCreateTest.getComponent());
     }
 
     @Test

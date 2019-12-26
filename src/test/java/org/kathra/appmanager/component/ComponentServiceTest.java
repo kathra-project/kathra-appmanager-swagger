@@ -555,7 +555,7 @@ public class ComponentServiceTest {
         component.setApiRepository(SourceRepositoryServiceAbstractTest.getSourceRepositoryForDb());
         component.setLibraries(ImmutableList.of(new Library().id("LIB1"), new Library().id("LIB2")));
         component.setVersions(ImmutableList.of(new ApiVersion().id("1.1.0"), new ApiVersion().id("1.0.0")));
-        component.setImplementations(ImmutableList.of(ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA)));
+        component.setImplementations(ImmutableList.of(ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA)));
         return component;
     }
 

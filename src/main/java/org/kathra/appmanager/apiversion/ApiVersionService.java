@@ -446,7 +446,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
 
         apiVersion.setLibrariesApiVersions(libraryApiVersionWithLibraryDetails);
 
-        Arrays.stream(Asset.LanguageEnum.values()).parallel().forEach(lang -> {
+        Arrays.stream(Library.LanguageEnum.values()).parallel().forEach(lang -> {
             this.kathraSessionManager.handleSession(session);
             buildForLanguage(apiVersion, lang, callback);
         });
@@ -458,7 +458,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
      * @param language
      * @param callback
      */
-    private void buildForLanguage(ApiVersion apiVersion, Asset.LanguageEnum language, Runnable callback) {
+    private void buildForLanguage(ApiVersion apiVersion, Library.LanguageEnum language, Runnable callback) {
         final Session session = kathraSessionManager.getCurrentSession();
         final Runnable buildApiClient = () -> {
             this.kathraSessionManager.handleSession(session);
@@ -472,7 +472,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         buildForLanguageAndTypeLib(apiVersion, language, Library.TypeEnum.MODEL, buildInterface, callback);
     }
 
-    private LibraryApiVersion findLibraryApiVersion(ApiVersion apiVersion, Asset.LanguageEnum language, Library.TypeEnum type) throws ApiException {
+    private LibraryApiVersion findLibraryApiVersion(ApiVersion apiVersion, Library.LanguageEnum language, Library.TypeEnum type) throws ApiException {
 
         AtomicReference<ApiException> exceptionFound = new AtomicReference<>();
         List<LibraryApiVersion> libraries =     apiVersion.getLibrariesApiVersions().parallelStream().filter(libraryApiVersion -> libraryApiVersion.getLibrary().getLanguage().equals(language) && libraryApiVersion.getLibrary().getType().equals(type)).collect(Collectors.toList());
@@ -495,7 +495,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
      * @param callbackNextBuild
      * @param finalCallback
      */
-    private void buildForLanguageAndTypeLib(ApiVersion apiVersion, Asset.LanguageEnum language, Library.TypeEnum type, Runnable callbackNextBuild, Runnable finalCallback) {
+    private void buildForLanguageAndTypeLib(ApiVersion apiVersion, Library.LanguageEnum language, Library.TypeEnum type, Runnable callbackNextBuild, Runnable finalCallback) {
         logger.info("ApiVersion '" + apiVersion.getId() + "' - '" + apiVersion.getName() + "' - build language " + language + " libType " + type);
         try {
             LibraryApiVersion libraryApiVersion = findLibraryApiVersion(apiVersion, language, type);

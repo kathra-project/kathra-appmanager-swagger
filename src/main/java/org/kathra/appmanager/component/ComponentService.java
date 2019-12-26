@@ -151,7 +151,7 @@ public class ComponentService extends AbstractResourceService<Component> {
                     SourceRepository sourceRepositoryApi = createSourceRepositoryApi(componentAdded, callback);
 
                     // CREATE COMPONENT LIBRARIES FOR EACH PROGRAMMING LANGUAGES AND LIBRARIES TYPES
-                    for(Asset.LanguageEnum languageProgramming : Library.LanguageEnum.values()){
+                    for(Library.LanguageEnum languageProgramming : Library.LanguageEnum.values()){
                         for(Library.TypeEnum libraryType : Library.TypeEnum.values()) {
                             Thread.sleep(200);
                             createLibrary(componentAdded, languageProgramming, libraryType, callback);

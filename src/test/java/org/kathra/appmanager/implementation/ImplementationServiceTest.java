@@ -64,7 +64,7 @@ public class ImplementationServiceTest extends AbstractServiceTest {
     public final static String IMPL_ARTIFACT_NAME = "implementationid";
     public final static String IMPL_ARTIFACT_GROUP_ID = "com.mygroup.subgroup";
 
-    public static Implementation generateImplementationExample(Asset.LanguageEnum languageEnum) {
+    public static Implementation generateImplementationExample(Implementation.LanguageEnum languageEnum) {
         String id = UUID.randomUUID().toString();
         return new Implementation()
                 .id(IMPL_ID)

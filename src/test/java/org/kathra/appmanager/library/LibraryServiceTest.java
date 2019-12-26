@@ -218,9 +218,9 @@ public class LibraryServiceTest extends AbstractServiceTest {
     protected void assertPendingLibrary(Library library) {
         Assertions.assertNotNull(library);
         Assertions.assertEquals(LIBRARY_ID, library.getId());
-        Assertions.assertEquals(getComponent().getName()+"-"+Asset.LanguageEnum.PYTHON.toString()+"-"+Library.TypeEnum.MODEL.toString(), library.getName());
+        Assertions.assertEquals(getComponent().getName()+"-"+Library.LanguageEnum.PYTHON.toString()+"-"+Library.TypeEnum.MODEL.toString(), library.getName());
         Assertions.assertEquals(Library.TypeEnum.MODEL, library.getType());
-        Assertions.assertEquals(Asset.LanguageEnum.PYTHON, library.getLanguage());
+        Assertions.assertEquals(Library.LanguageEnum.PYTHON, library.getLanguage());
         Assertions.assertEquals(Resource.StatusEnum.PENDING, library.getStatus());
         Assertions.assertEquals(ComponentServiceTest.COMPONENT_ID, library.getComponent().getId());
     }
@@ -229,7 +229,7 @@ public class LibraryServiceTest extends AbstractServiceTest {
         Assertions.assertNotNull(library);
         Assertions.assertEquals(LIBRARY_ID, library.getId());
         Assertions.assertEquals(Library.TypeEnum.MODEL, library.getType());
-        Assertions.assertEquals(Asset.LanguageEnum.PYTHON, library.getLanguage());
+        Assertions.assertEquals(Library.LanguageEnum.PYTHON, library.getLanguage());
         Assertions.assertEquals(Resource.StatusEnum.READY, library.getStatus());
         Assertions.assertEquals(ComponentServiceTest.COMPONENT_ID, library.getComponent().getId());
         Assertions.assertNotNull(library.getSourceRepository());
