@@ -26,7 +26,7 @@ import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.service.AbstractServiceTest;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
-import org.kathra.pipelinemanager.client.PipelinemanagerClient;
+import org.kathra.pipelinemanager.client.PipelineManagerClient;
 import org.kathra.resourcemanager.client.PipelinesClient;
 import org.kathra.utils.ApiException;
 import org.apache.commons.lang3.StringUtils;
@@ -60,7 +60,7 @@ public class PipelineServiceAbstractTest extends AbstractServiceTest {
     @Mock
     PipelinesClient resourceManager;
     @Mock
-    PipelinemanagerClient pipelineManagerClient;
+    PipelineManagerClient pipelineManagerClient;
     @Mock
     LibraryService libraryService;
     @Mock

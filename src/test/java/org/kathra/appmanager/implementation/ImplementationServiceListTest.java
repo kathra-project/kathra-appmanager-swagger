@@ -47,8 +47,8 @@ public class ImplementationServiceListTest extends ImplementationServiceTest {
     @Test
     public void given_nominal_args_when_creating_implementation_then_works() throws Exception {
 
-        //assertThat("The response HTTP Status Code is 201(Created)", underTest.addContainersRepository(repoToCreate).getStatusCode(), is(201));
-        //assertThat("The response informs the resource have been created", underTest.addContainersRepository(repoToCreate).getData(), is(""));
+        //assertThat("The response HTTP Status Code is 201(Created)", underTest.addBinaryRepository(repoToCreate).getStatusCode(), is(201));
+        //assertThat("The response informs the resource have been created", underTest.addBinaryRepository(repoToCreate).getData(), is(""));
     }
 
     @Test
