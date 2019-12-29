@@ -27,6 +27,8 @@ import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.codegen.client.CodegenClient;
+import org.kathra.codegen.model.CodeGenTemplate;
+import org.kathra.codegen.model.CodeGenTemplateArgument;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.LibraryApiVersionsClient;
 import org.kathra.utils.ApiException;
@@ -238,24 +240,27 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
         return libraryApiVersion.status(Resource.StatusEnum.UPDATING).apiRepositoryStatus(LibraryApiVersion.ApiRepositoryStatusEnum.UPDATING);
     }
 
+    private CodeGenTemplate getCodeGenTemplate(LibraryApiVersion libraryApiVersion, File apiFile) throws ApiException {
+        final String artifactGroup = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_GROUP_ID);
+        final String artifactName = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_ARTIFACT_NAME);
+        try {
+            final String content = new String ( java.nio.file.Files.readAllBytes( java.nio.file.Paths.get(apiFile.getAbsolutePath()) ) );
+            return new CodeGenTemplate().name("LIBRARY_"+libraryApiVersion.getLibrary().getLanguage().toString()+"_REST_"+libraryApiVersion.getLibrary().getType())
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("NAME").value(artifactName))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("GROUP").value(artifactGroup))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("SWAGGER2_SPEC").value(content))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("VERSION").value(libraryApiVersion.getApiVersion().getVersion()));
+        } catch(Exception e) {
+            throw new ApiException("Unable to read api file");
+        }
+    }
+
     private void generateAndUpdateSrc(LibraryApiVersion libraryApiVersion, File apiFile, Runnable callback) throws ApiException {
         try {
             final String artifactGroup = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_GROUP_ID);
             final String artifactName = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_ARTIFACT_NAME);
-            final File sourceGenerated;
-            switch(libraryApiVersion.getLibrary().getType()) {
-                case MODEL:
-                    sourceGenerated = codegenClient.generateModel(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                case CLIENT:
-                    sourceGenerated = codegenClient.generateClient(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                case INTERFACE:
-                    sourceGenerated = codegenClient.generateInterface(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                default:
-                    throw new NotImplementedException("Library type "+libraryApiVersion.getLibrary().getType().toString()+" not implemented");
-            }
+            final File sourceGenerated = codegenClient.generateFromTemplate(getCodeGenTemplate(libraryApiVersion, apiFile));
+            
             if (sourceGenerated == null) {
                 throw new IllegalArgumentException("CodeGenClient's File is null");
             }
