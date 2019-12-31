@@ -30,7 +30,7 @@ import java.util.Map;
 
 public class ServiceInjection {
 
-    private final Map<Class,AbstractResourceService> instancesServices = new HashMap<>();
+    private final Map<Class,Injectable> instancesServices = new HashMap<>();
 
     Config config;
     KathraSessionManager kathraSessionManager;
@@ -40,9 +40,9 @@ public class ServiceInjection {
         this.kathraSessionManager = sessionManager;
     }
 
-    public synchronized <T extends AbstractResourceService> T getService(Class<T> clazz) {
+    public synchronized <T extends Injectable> T getService(Class<T> clazz) {
 
-        AbstractResourceService instance = instancesServices.get(clazz);
+        Injectable instance = instancesServices.get(clazz);
         if (instance == null) {
             try {
                 Constructor<T> defaultConstructor = clazz.getConstructor();

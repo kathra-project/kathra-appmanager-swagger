@@ -36,7 +36,7 @@ import java.util.stream.Collectors;
 /**
  * @author julien.boubechtoula
  */
-public abstract class AbstractResourceService<X extends Resource> {
+public abstract class AbstractResourceService<X extends Resource> implements Injectable {
 
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected KathraSessionManager kathraSessionManager;

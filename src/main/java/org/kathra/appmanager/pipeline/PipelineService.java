@@ -52,8 +52,8 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
     private SourceRepositoryService sourceRepositoryService;
     private ComponentService componentService;
 
-    private static final String BUILD_PARAM_BRANCH = "GIT_BRANCH";
-    private static final String BUILD_PARAM_SRC_URL = "GIT_URL";
+    public static final String BUILD_PARAM_BRANCH = "GIT_BRANCH";
+    public static final String BUILD_PARAM_SRC_URL = "GIT_URL";
 
 
     public int intervalCheckMs = 30000;
@@ -184,8 +184,10 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
             super.updateStatus(pipeline, Resource.StatusEnum.UNSTABLE);
         }
     }
-
     public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback) throws ApiException {
+        return create(name, path, sourceRepository, template, credentialId, callback);
+    }
+    public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback, Map<String, Object> extras) throws ApiException {
 
 
         if (StringUtils.isEmpty(name)) {
@@ -212,7 +214,8 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
                 .sourceRepository(sourceRepository)
                 .path(path)
                 .template(template)
-                .credentialId(credentialId);
+                .credentialId(credentialId)
+                .metadata(extras);
 
 
         final Pipeline pipeline = resourceManager.addPipeline(toAdd);
