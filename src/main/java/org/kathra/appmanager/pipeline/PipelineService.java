@@ -185,7 +185,7 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
         }
     }
     public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback) throws ApiException {
-        return create(name, path, sourceRepository, template, credentialId, callback);
+        return create(name, path, sourceRepository, template, credentialId, callback, null);
     }
     public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback, Map<String, Object> extras) throws ApiException {
 
