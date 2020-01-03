@@ -53,6 +53,10 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         resourceManager.updateCatalogEntryAttributes(object.getId(), object);;
     }
 
+    protected void delete(CatalogEntry object) throws ApiException {
+        throw new NotImplementedException("Not implemented");
+    }
+
     @Override
     public Optional<CatalogEntry> getById(String id) throws ApiException {
         CatalogEntry o = resourceManager.getCatalogEntry(id);

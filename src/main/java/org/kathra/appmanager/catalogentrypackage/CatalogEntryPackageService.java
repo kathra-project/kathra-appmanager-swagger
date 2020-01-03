@@ -8,6 +8,8 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.codegen.CodeGenProxyService;
+import org.kathra.appmanager.implementation.ImplementationService;
+import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
@@ -35,14 +37,8 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     private CodeGenProxyService codeGenProxyService;
     private CatalogEntryPackagesClient resourceManager;
 
-    public static final String METADATA_API_GROUP_ID = "artifact-groupId";
-    public static final String METADATA_API_ARTIFACT_NAME = "artifact-artifactName";
-
     public static final String DEFAULT_BRANCH = "dev";
-    public static final String API_FILENAME = "swagger.yaml";
-
-    private static final Pattern PATTERN_NAME = Pattern.compile("^[0-9A-Za-z_\\-]+$");
-
+    public static final String FIRST_VERSION = "1.0.0";
 
     public void configure(ServiceInjection service) {
         super.configure(service);
@@ -100,13 +96,13 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                                                                             .packageType(type)
                                                                             .catalogEntry(catalogEntry)
                                                                             .binaryRepository(binaryRepository);
-        final CatalogEntryPackage catalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
+        final CatalogEntryPackage catalogEntryPackCatalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
         try {
-            if (StringUtils.isEmpty(catalogEntryPackageAdded.getId())) {
+            if (StringUtils.isEmpty(catalogEntryPackCatalogEntryPackageAdded.getId())) {
                 throw new IllegalStateException("Component'id should be defined");
             }
         } catch(Exception e) {
-            manageError(catalogEntryPackageAdded, e);
+            manageError(catalogEntryPackCatalogEntryPackageAdded, e);
             throw e;
         }
 
@@ -119,7 +115,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         final Runnable afterPipelineCreated = () -> {
             try {
                 kathraSessionManager.handleSession(session);
-                pipelineService.build(catalogEntryPackage.getPipeline(), "dev", ImmutableMap.of(), () -> onBuildSuccess(catalogEntryPackage, onSuccess));
+                pipelineService.build(catalogEntryPackage.getPipeline(), DEFAULT_BRANCH, ImmutableMap.of(), () -> onBuildSuccess(catalogEntryPackage, onSuccess));
             } catch (ApiException e) {
                 manageError(catalogEntryPackage, e);
             }
@@ -140,7 +136,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         final Runnable pushSource = () -> {
             try {
                 kathraSessionManager.handleSession(session);
-                sourceRepositoryService.commitArchiveAndTag(catalogEntryPackage.getSourceRepository(), "dev", generatedSource, null, "1.0.0");
+                sourceRepositoryService.commitArchiveAndTag(catalogEntryPackage.getSourceRepository(), DEFAULT_BRANCH, generatedSource, null, FIRST_VERSION);
                 // CREATE PIPELINE
                 createPipeline.accept(Pair.of(catalogEntryPackage, session));
             } catch (ApiException e) {
@@ -168,10 +164,10 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         List<CodeGenTemplateArgument> template = new ArrayList<>();
         template.add(new CodeGenTemplateArgument().key("CHART_NAME").value(implementation.getName()));
         template.add(new CodeGenTemplateArgument().key("CHART_DESCRIPTION").value(implementation.getDescription()));
-        template.add(new CodeGenTemplateArgument().key("CHART_VERSION").value("1.0.0"));
-        template.add(new CodeGenTemplateArgument().key("APP_VERSION").value("1.0.0"));
+        template.add(new CodeGenTemplateArgument().key("CHART_VERSION").value(FIRST_VERSION));
+        template.add(new CodeGenTemplateArgument().key("APP_VERSION").value(FIRST_VERSION));
         template.add(new CodeGenTemplateArgument().key("IMAGE_NAME").value(implementation.getName()));
-        template.add(new CodeGenTemplateArgument().key("IMAGE_TAG").value("dev"));
+        template.add(new CodeGenTemplateArgument().key("IMAGE_TAG").value(ImplementationVersionService.DEFAULT_BRANCH));
         template.add(new CodeGenTemplateArgument().key("IMAGE_REGISTRY").value(implementation.getBinaryRepository().getUrl()));
         return template;
     }
@@ -186,7 +182,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     }
 
     public Build build(CatalogEntryPackage catalogEntryPackage, String branch, Map<String, String> extraArgs, Consumer<CatalogEntryPackage> onSuccess) throws ApiException {
-        Build build = pipelineService.build(catalogEntryPackage.getPipeline(), "dev", ImmutableMap.of(), () -> onBuildSuccess(catalogEntryPackage, onSuccess));
+        Build build = pipelineService.build(catalogEntryPackage.getPipeline(), DEFAULT_BRANCH, ImmutableMap.of(), () -> onBuildSuccess(catalogEntryPackage, onSuccess));
         catalogEntryPackage.getMetadata().put("LATEST_BUILD_ID", build.getBuildNumber());
         return build;
     }
@@ -200,5 +196,9 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 .filter(i -> i.getRight().stream().anyMatch(t -> t.equals(typeEnum.getValue())))
                 .map(i -> Pair.of(i.getMiddle(), i.getRight().stream().filter(t -> t.equals(typeEnum.getValue())).findFirst().get()))
                 .findFirst().get();
+    }
+
+    public CatalogEntryPackageVersion getVersion(CatalogEntryPackage catalogEntryPackage, String version) {
+        return null;
     }
 }

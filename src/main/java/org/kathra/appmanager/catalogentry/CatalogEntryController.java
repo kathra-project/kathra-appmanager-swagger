@@ -33,6 +33,7 @@ import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.codegen.model.CodeGenTemplate;
 import org.kathra.core.model.*;
 import org.kathra.utils.KathraException;
+import org.kathra.utils.KathraRuntimeException;
 
 import javax.activation.FileDataSource;
 import javax.inject.Named;
@@ -43,11 +44,10 @@ import java.util.List;
 /**
  * @author julien.boubechtoula
  */
-@Named("ApiVersionsController")
+@Named("CatalogEntriesController")
 @ContextName("AppManager")
 public class CatalogEntryController implements CatalogEntriesService {
 
-    private static final String apiFilePath="swagger.yaml";
     private ServiceInjection serviceInjection;
     private final CatalogEntryPackageService catalogEntryPackageService;
     private final CatalogEntryService catalogEntryService;
@@ -70,26 +70,28 @@ public class CatalogEntryController implements CatalogEntriesService {
 
     @Override
     public CatalogEntry deleteCatalogEntryById(String catalogEntryId) throws Exception {
-        return null;
+        catalogEntryService.delete(getCatalogEntry(catalogEntryId));
+        return new CatalogEntry().id(catalogEntryId).status(Resource.StatusEnum.DELETED);
     }
 
     @Override
     public List<CatalogEntry> getCatalogEntries() throws Exception {
-        return null;
+        return catalogEntryService.getAll();
     }
 
     @Override
     public CatalogEntry getCatalogEntry(String catalogEntryId) throws Exception {
-        return null;
+        return catalogEntryService.getById(catalogEntryId).orElseThrow(() -> new KathraRuntimeException("Catalog entry not found",null).errorCode(KathraRuntimeException.ErrorCode.NOT_FOUND));
     }
 
     @Override
     public CatalogEntryPackage getCatalogEntryPackage(String catalogEntryPackageId) throws Exception {
-        return null;
+        return catalogEntryPackageService.getById(catalogEntryPackageId).orElseThrow(() -> new KathraRuntimeException("Catalog entry not found",null).errorCode(KathraRuntimeException.ErrorCode.NOT_FOUND));
     }
 
     @Override
     public CatalogEntryPackage getCatalogEntryPackageFromVersion(String catalogEntryPackageId, String version) throws Exception {
+        //return catalogEntryPackageService.getVersion(getCatalogEntryPackage(catalogEntryPackageId), version);
         return null;
     }
 
