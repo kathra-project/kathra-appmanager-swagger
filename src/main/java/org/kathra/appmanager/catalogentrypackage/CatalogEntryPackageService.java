@@ -15,12 +15,14 @@ import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.binaryrepositorymanager.model.Credential;
+import org.kathra.catalogmanager.client.ReadCatalogEntriesClient;
 import org.kathra.codegen.client.CodegenClient;
 import org.kathra.codegen.model.CodeGenTemplate;
 import org.kathra.codegen.model.CodeGenTemplateArgument;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.CatalogEntryPackagesClient;
 import org.kathra.utils.ApiException;
+import org.kathra.utils.KathraException;
 import org.kathra.utils.KathraSessionManager;
 import org.kathra.utils.Session;
 
@@ -28,6 +30,7 @@ import java.io.File;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class CatalogEntryPackageService extends AbstractResourceService<CatalogEntryPackage> {
 
@@ -36,9 +39,14 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     private PipelineService pipelineService;
     private CodeGenProxyService codeGenProxyService;
     private CatalogEntryPackagesClient resourceManager;
+    private ReadCatalogEntriesClient catalogManager;
 
     public static final String DEFAULT_BRANCH = "dev";
     public static final String FIRST_VERSION = "1.0.0";
+
+    public CatalogEntryPackageService() {
+
+    }
 
     public void configure(ServiceInjection service) {
         super.configure(service);
@@ -47,6 +55,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         this.pipelineService = service.getService(PipelineService.class);
         this.sourceRepositoryService = service.getService(SourceRepositoryService.class);
         this.binaryRepositoryService = service.getService(BinaryRepositoryService.class);
+        this.catalogManager = new ReadCatalogEntriesClient(service.getConfig().getCatalogManagerUrl(), service.getSessionManager());
     }
 
     @Override
@@ -62,16 +71,42 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
     @Override
     public List<CatalogEntryPackage> getAll() throws ApiException {
-        return resourceManager.getCatalogEntryPackages();
+        List<CatalogEntryPackage> allEntriesFromCatalogManager = this.catalogManager.getAllCatalogEntryPackages();
+        List<CatalogEntryPackage> allEntriesFromResourceManager = this.resourceManager.getCatalogEntryPackages();
+        return allEntriesFromCatalogManager.parallelStream().map(entry -> enrichWithResourceManager(entry, allEntriesFromResourceManager)).collect(Collectors.toList());
     }
 
-    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService) {
+    private CatalogEntryPackageVersion enrichWithResourceManager(CatalogEntryPackageVersion catalogEntryPackageVersion, List<CatalogEntryPackage> entriesFromResourceManager) {
+        return catalogEntryPackageVersion.catalogEntryPackage(enrichWithResourceManager(catalogEntryPackageVersion.getCatalogEntryPackage(), entriesFromResourceManager));
+    }
+
+    private CatalogEntryPackage enrichWithResourceManager(CatalogEntryPackage catalogEntry, List<CatalogEntryPackage> entriesFromResourceManager) {
+        Optional<CatalogEntryPackage> fromResourceManager = entriesFromResourceManager.parallelStream().filter(entry -> entry.getProviderId().equals(catalogEntry.getProviderId())).findFirst();
+        if (fromResourceManager.isEmpty()) {
+            return catalogEntry;
+        }
+        catalogEntry.id(fromResourceManager.get().getId())
+                .binaryRepository(fromResourceManager.get().getBinaryRepository())
+                .packageType(fromResourceManager.get().getPackageType())
+                .createdAt(fromResourceManager.get().getCreatedAt())
+                .updatedAt(fromResourceManager.get().getUpdatedAt())
+                .createdBy(fromResourceManager.get().getCreatedBy())
+                .updatedBy(fromResourceManager.get().getUpdatedBy())
+                .pipeline(fromResourceManager.get().getPipeline())
+                .sourceRepository(fromResourceManager.get().getSourceRepository())
+                .status(fromResourceManager.get().getStatus());
+        return catalogEntry;
+    }
+
+    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService, ReadCatalogEntriesClient
+            catalogManager) {
         this.resourceManager = resourceManager;
         super.kathraSessionManager = kathraSessionManager;
         this.sourceRepositoryService = sourceRepositoryService;
         this.binaryRepositoryService = binaryRepositoryService;
         this.pipelineService = pipelineService;
         this.codeGenProxyService = codeGenProxyService;
+        this.catalogManager = catalogManager;
     }
 
     public CatalogEntryPackage createPackageFromImplementation(CatalogEntry catalogEntry, CatalogEntryPackage.PackageTypeEnum type, Implementation implementation, Group group, Consumer<CatalogEntryPackage> onSuccess) throws ApiException {
@@ -90,18 +125,17 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         }
 
 
-
         File generatedSource = templateWithClient.getKey().generateFromTemplate(templateWithClient.getValue());
-        CatalogEntryPackage catalogEntryPackage = new CatalogEntryPackage() .name(catalogEntry.getName())
-                                                                            .packageType(type)
-                                                                            .catalogEntry(catalogEntry)
-                                                                            .binaryRepository(binaryRepository);
+        CatalogEntryPackage catalogEntryPackage = new CatalogEntryPackage().name(catalogEntry.getName())
+                .packageType(type)
+                .catalogEntry(catalogEntry)
+                .binaryRepository(binaryRepository);
         final CatalogEntryPackage catalogEntryPackCatalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
         try {
             if (StringUtils.isEmpty(catalogEntryPackCatalogEntryPackageAdded.getId())) {
                 throw new IllegalStateException("Component'id should be defined");
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             manageError(catalogEntryPackCatalogEntryPackageAdded, e);
             throw e;
         }
@@ -157,7 +191,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             }
         };
 
-        createSourceRepository.accept(Pair.of(catalogEntryPackage,session));
+        createSourceRepository.accept(Pair.of(catalogEntryPackage, session));
     }
 
     private List<CodeGenTemplateArgument> addValuesForHelmSrcTemplate(Implementation implementation) {
@@ -191,14 +225,54 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         updateStatus(catalogEntryPackage, Resource.StatusEnum.READY);
     }
 
-    private Pair<CodegenClient,CodeGenTemplate> getHelmTemplate(CatalogEntryPackage.PackageTypeEnum typeEnum) throws ApiException {
+    private Pair<CodegenClient, CodeGenTemplate> getHelmTemplate(CatalogEntryPackage.PackageTypeEnum typeEnum) throws ApiException {
         return codeGenProxyService.getAllTemplates().stream()
                 .filter(i -> i.getRight().stream().anyMatch(t -> t.equals(typeEnum.getValue())))
                 .map(i -> Pair.of(i.getMiddle(), i.getRight().stream().filter(t -> t.equals(typeEnum.getValue())).findFirst().get()))
                 .findFirst().get();
     }
 
-    public CatalogEntryPackageVersion getVersion(CatalogEntryPackage catalogEntryPackage, String version) {
-        return null;
+    public List<CatalogEntryPackageVersion> getVersions(CatalogEntryPackage catalogEntryPackage) throws ApiException, KathraException {
+        List<CatalogEntryPackageVersion> entryWithVersions = null;
+        try {
+            entryWithVersions = this.catalogManager.getCatalogEntryPackageVersions(catalogEntryPackage.getProviderId());
+        } catch (ApiException e) {
+            e.printStackTrace();
+            if (e.getCode() == KathraException.ErrorCode.NOT_FOUND.getCode()) {
+                throw new KathraException("CatalogEntryPackage with providerId '" + catalogEntryPackage.getProviderId() + "' not found in manager", null, KathraException.ErrorCode.NOT_FOUND);
+            }
+        }
+
+        List<CatalogEntryPackage> allEntriesFromResourceManager = this.resourceManager.getCatalogEntryPackages();
+        entryWithVersions.parallelStream().map(entry -> enrichWithResourceManager(entry, allEntriesFromResourceManager)).collect(Collectors.toList());
+        return entryWithVersions;
+    }
+
+    public CatalogEntryPackageVersion getVersionWithDetails(CatalogEntryPackage catalogEntryPackage, String version) throws KathraException, ApiException {
+        CatalogEntryPackageVersion entryVersionWithDetails = null;
+        try {
+            entryVersionWithDetails = this.catalogManager.getCatalogEntryFromVersion(catalogEntryPackage.getProviderId(), version);
+        } catch (ApiException e) {
+            e.printStackTrace();
+            if (e.getCode() == KathraException.ErrorCode.NOT_FOUND.getCode()) {
+                throw new KathraException("CatalogEntryPackage with providerId '" + catalogEntryPackage.getProviderId() + "' not found in manager", null, KathraException.ErrorCode.NOT_FOUND);
+            }
+        }
+        List<CatalogEntryPackage> allEntriesFromResourceManager = this.resourceManager.getCatalogEntryPackages();
+        return enrichWithResourceManager(entryVersionWithDetails, allEntriesFromResourceManager);
+    }
+
+    public CatalogEntryPackage getByProviderId(String providerId) throws KathraException, ApiException {
+        CatalogEntryPackage entry = null;
+        try {
+            entry = this.catalogManager.getCatalogEntryPackage(providerId);
+        } catch (ApiException e) {
+            e.printStackTrace();
+            if (e.getCode() == KathraException.ErrorCode.NOT_FOUND.getCode()) {
+                throw new KathraException("CatalogEntryPackage with providerId '" + providerId + "' not found in manager", null, KathraException.ErrorCode.NOT_FOUND);
+            }
+        }
+        List<CatalogEntryPackage> allEntriesFromResourceManager = this.resourceManager.getCatalogEntryPackages();
+        return enrichWithResourceManager(entry.providerId(providerId), allEntriesFromResourceManager);
     }
 }

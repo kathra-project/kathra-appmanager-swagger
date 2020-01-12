@@ -37,6 +37,10 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
 
     private static final Pattern PATTERN_NAME = Pattern.compile("^[0-9A-Za-z_\\-]+$");
 
+    public CatalogEntryService() {
+
+    }
+
     public void configure(ServiceInjection service) {
         super.configure(service);
         this.resourceManager = new CatalogEntriesClient(service.getConfig().getResourceManagerUrl(), service.getSessionManager());

@@ -85,14 +85,20 @@ public class CatalogEntryController implements CatalogEntriesService {
     }
 
     @Override
-    public CatalogEntryPackage getCatalogEntryPackage(String catalogEntryPackageId) throws Exception {
-        return catalogEntryPackageService.getById(catalogEntryPackageId).orElseThrow(() -> new KathraRuntimeException("Catalog entry not found",null).errorCode(KathraRuntimeException.ErrorCode.NOT_FOUND));
+    public CatalogEntryPackage getCatalogEntryPackageFromProviderId(String providerId) throws Exception {
+        CatalogEntryPackage catalogEntryPackage = catalogEntryPackageService.getByProviderId(providerId);
+        return catalogEntryPackage.versions(catalogEntryPackageService.getVersions(catalogEntryPackage));
     }
 
     @Override
-    public CatalogEntryPackage getCatalogEntryPackageFromVersion(String catalogEntryPackageId, String version) throws Exception {
-        //return catalogEntryPackageService.getVersion(getCatalogEntryPackage(catalogEntryPackageId), version);
-        return null;
+    public CatalogEntryPackage getCatalogEntryPackageFromProviderIdAndVersion(String providerId, String version) throws Exception {
+        CatalogEntryPackageVersion versionPackage = catalogEntryPackageService.getVersionWithDetails(new CatalogEntryPackage().providerId(providerId), version);
+        return versionPackage.getCatalogEntryPackage().addVersionsItem(versionPackage.catalogEntryPackage(null));
+    }
+
+    @Override
+    public List<CatalogEntryPackage> getCatalogEntryPackages() throws Exception {
+        return catalogEntryPackageService.getAll();
     }
 
     @Override

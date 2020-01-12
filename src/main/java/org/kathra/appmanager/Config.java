@@ -32,6 +32,7 @@ public class Config extends ConfigManager {
     private String sourceManagerUrl;
     private String pipelineManagerUrl;
     private String resourceManagerUrl;
+    private String catalogManagerUrl;
 
     private String imageRegistryHost;
     private boolean deleteZipFile;
@@ -54,6 +55,10 @@ public class Config extends ConfigManager {
         resourceManagerUrl = getProperty("KATHRA_APPMANAGER_RESOURCEMANAGER_URL");
         if (!resourceManagerUrl.startsWith("http"))
             resourceManagerUrl = "http://" + resourceManagerUrl;
+
+        catalogManagerUrl = getProperty("KATHRA_APPMANAGER_CATALOGMANAGER_URL");
+        if (!catalogManagerUrl.startsWith("http"))
+            catalogManagerUrl = "http://" + catalogManagerUrl;
 
         imageRegistryHost = getProperty("IMAGE_REGISTRY_HOST");
 
@@ -83,4 +88,6 @@ public class Config extends ConfigManager {
     public String getImageRegistryHost() {
         return imageRegistryHost;
     }
+
+    public String getCatalogManagerUrl() {return catalogManagerUrl;}
 }
