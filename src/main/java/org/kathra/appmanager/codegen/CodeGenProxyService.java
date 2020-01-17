@@ -21,6 +21,7 @@ public class CodeGenProxyService implements Injectable {
 
     public void configure(ServiceInjection serviceInjection) {
         kathraSessionManager = serviceInjection.getSessionManager();
+        providers = ImmutableMap.of("SWAGGER",new CodegenClient(serviceInjection.getConfig().getCodegenUrlSwagger()), "HELM", new CodegenClient(serviceInjection.getConfig().getCodegenUrlHelm()));
     }
 
     public CodeGenProxyService() {

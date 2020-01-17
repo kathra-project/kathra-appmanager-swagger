@@ -28,20 +28,30 @@ import org.kathra.utils.ConfigManager;
  */
 public class Config extends ConfigManager {
 
-    private String codegenUrl;
+    private String codegenUrlHelm;
+    private String codegenUrlSwagger;
     private String sourceManagerUrl;
     private String pipelineManagerUrl;
     private String resourceManagerUrl;
     private String catalogManagerUrl;
+    private String binaryManagerHarborUrl;
 
     private String imageRegistryHost;
     private boolean deleteZipFile;
 
     public Config() {
-        codegenUrl = getProperty("KATHRA_APPMANAGER_CODEGEN_URL");
+        codegenUrlHelm = getProperty("KATHRA_APPMANAGER_CODEGEN_HELM_URL");
+        if (!codegenUrlHelm.startsWith("http"))
+            codegenUrlHelm = "http://" + codegenUrlHelm;
 
-        if (!codegenUrl.startsWith("http"))
-            codegenUrl = "http://" + codegenUrl;
+
+        codegenUrlSwagger = getProperty("KATHRA_APPMANAGER_CODEGEN_URL");
+        if (!codegenUrlSwagger.startsWith("http"))
+            codegenUrlSwagger = "http://" + codegenUrlSwagger;
+
+        codegenUrlSwagger = getProperty("KATHRA_APPMANAGER_CODEGEN_SWAGGER_URL");
+        if (!codegenUrlSwagger.startsWith("http"))
+            codegenUrlSwagger = "http://" + codegenUrlSwagger;
 
         sourceManagerUrl = getProperty("KATHRA_APPMANAGER_SOURCEMANAGER_URL");
 
@@ -60,13 +70,26 @@ public class Config extends ConfigManager {
         if (!catalogManagerUrl.startsWith("http"))
             catalogManagerUrl = "http://" + catalogManagerUrl;
 
+
+        binaryManagerHarborUrl = getProperty("KATHRA_APPMANAGER_BINARYMANAGER_HARBOR_URL");
+        if (!pipelineManagerUrl.startsWith("http"))
+            binaryManagerHarborUrl = "http://" + binaryManagerHarborUrl;
+
+
         imageRegistryHost = getProperty("IMAGE_REGISTRY_HOST");
 
         deleteZipFile = Boolean.valueOf(getProperty("KATHRA_APPMANAGER_DELETE_ZIP_FILE", "true"));
     }
 
     public String getCodegenUrl() {
-        return this.codegenUrl;
+        return this.codegenUrlSwagger;
+    }
+
+    public String getCodegenUrlHelm() {
+        return this.codegenUrlHelm;
+    }
+    public String getCodegenUrlSwagger() {
+        return this.codegenUrlSwagger;
     }
 
     public String getSourceManagerUrl() {
@@ -90,4 +113,6 @@ public class Config extends ConfigManager {
     }
 
     public String getCatalogManagerUrl() {return catalogManagerUrl;}
+
+    public String getBinaryManagerHarbor() {return binaryManagerHarborUrl;}
 }

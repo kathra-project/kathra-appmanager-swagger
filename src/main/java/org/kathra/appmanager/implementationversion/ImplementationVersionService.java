@@ -198,7 +198,7 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
     }
     
     private CodeGenTemplate getCodeGenTemplate(ImplementationVersion implVersion, File apiFile) throws ApiException {
-        final String artifactGroup = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME);
+        final String artifactGroup = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_GROUP_ID);
         final String artifactName = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME);
         try {
             final String content = new String ( java.nio.file.Files.readAllBytes( java.nio.file.Paths.get(apiFile.getAbsolutePath()) ) );

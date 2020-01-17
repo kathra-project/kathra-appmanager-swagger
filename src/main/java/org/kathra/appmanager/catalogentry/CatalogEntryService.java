@@ -33,8 +33,6 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
     public static final String METADATA_GROUP_PATH = "groupPath";
     public static final String METADATA_GROUP_ID= "groupId";
 
-    public static final String METADATA_DEPLOY_KEY = "deployKey";
-
     private static final Pattern PATTERN_NAME = Pattern.compile("^[0-9A-Za-z_\\-]+$");
 
     public CatalogEntryService() {
@@ -45,6 +43,8 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         super.configure(service);
         this.resourceManager = new CatalogEntriesClient(service.getConfig().getResourceManagerUrl(), service.getSessionManager());
         this.catalogEntryPackageService = service.getService(CatalogEntryPackageService.class);
+        this.groupService = service.getService(GroupService.class);
+        this.implementationService = service.getService(ImplementationService.class);
     }
     public CatalogEntryService(CatalogEntriesClient resourceManager, CatalogEntryPackageService catalogEntryPackageService, KathraSessionManager kathraSessionManager) {
         this.resourceManager = resourceManager;

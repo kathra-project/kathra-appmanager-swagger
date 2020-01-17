@@ -4,11 +4,10 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
 import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.codegen.CodeGenProxyService;
-import org.kathra.appmanager.implementation.ImplementationService;
+import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.AbstractResourceService;
@@ -29,7 +28,6 @@ import org.kathra.utils.Session;
 import java.io.File;
 import java.util.*;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class CatalogEntryPackageService extends AbstractResourceService<CatalogEntryPackage> {
@@ -44,8 +42,23 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     public static final String DEFAULT_BRANCH = "dev";
     public static final String FIRST_VERSION = "1.0.0";
 
+    public static final String METADATA_DEPLOY_KEY = "deployKey";
+    public static final String METADATA_GROUP_ID = "groupId";
+    public static final String METADATA_GROUP_PATH = "groupPath";
+
     public CatalogEntryPackageService() {
 
+    }
+
+    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService, ReadCatalogEntriesClient
+            catalogManager) {
+        this.resourceManager = resourceManager;
+        super.kathraSessionManager = kathraSessionManager;
+        this.sourceRepositoryService = sourceRepositoryService;
+        this.binaryRepositoryService = binaryRepositoryService;
+        this.pipelineService = pipelineService;
+        this.codeGenProxyService = codeGenProxyService;
+        this.catalogManager = catalogManager;
     }
 
     public void configure(ServiceInjection service) {
@@ -98,27 +111,16 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         return catalogEntry;
     }
 
-    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService, ReadCatalogEntriesClient
-            catalogManager) {
-        this.resourceManager = resourceManager;
-        super.kathraSessionManager = kathraSessionManager;
-        this.sourceRepositoryService = sourceRepositoryService;
-        this.binaryRepositoryService = binaryRepositoryService;
-        this.pipelineService = pipelineService;
-        this.codeGenProxyService = codeGenProxyService;
-        this.catalogManager = catalogManager;
-    }
-
     public CatalogEntryPackage createPackageFromImplementation(CatalogEntry catalogEntry, CatalogEntryPackage.PackageTypeEnum type, Implementation implementation, Group group, Consumer<CatalogEntryPackage> onSuccess) throws ApiException {
 
-        Pair<CodegenClient, CodeGenTemplate> templateWithClient = getHelmTemplate(type);
+        Pair<CodegenClient, CodeGenTemplate> templateWithClient = getHelmTemplate(type, "RestApiService");
         Pipeline.TemplateEnum pipelineTemplate;
         BinaryRepository binaryRepository;
         switch (type) {
             case HELM:
                 pipelineTemplate = Pipeline.TemplateEnum.HELM_PACKAGE;
                 binaryRepository = binaryRepositoryService.getBinaryRepositoryFromGroupAndType(group, BinaryRepository.TypeEnum.HELM).stream().findFirst().orElse(null);
-                templateWithClient.getRight().arguments(addValuesForHelmSrcTemplate(implementation));
+                templateWithClient.getRight().arguments(addValuesForHelmSrcTemplate(implementation, binaryRepository));
                 break;
             default:
                 throw new NotImplementedException("Type not implemented");
@@ -127,6 +129,9 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
         File generatedSource = templateWithClient.getKey().generateFromTemplate(templateWithClient.getValue());
         CatalogEntryPackage catalogEntryPackage = new CatalogEntryPackage().name(catalogEntry.getName())
+                .putMetadataItem(METADATA_DEPLOY_KEY, group.getId())
+                .putMetadataItem(METADATA_GROUP_ID, group.getId())
+                .putMetadataItem(METADATA_GROUP_PATH, group.getPath())
                 .packageType(type)
                 .catalogEntry(catalogEntry)
                 .binaryRepository(binaryRepository);
@@ -140,8 +145,8 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             throw e;
         }
 
-        initSrcRepoAndPipeline(catalogEntryPackage, generatedSource, onSuccess, pipelineTemplate, group);
-        return catalogEntryPackage;
+        initSrcRepoAndPipeline(catalogEntryPackCatalogEntryPackageAdded, generatedSource, onSuccess, pipelineTemplate, group);
+        return catalogEntryPackCatalogEntryPackageAdded;
     }
 
     private void initSrcRepoAndPipeline(final CatalogEntryPackage catalogEntryPackage, File generatedSource, Consumer<CatalogEntryPackage> onSuccess, Pipeline.TemplateEnum pipelineTemplate, Group group) {
@@ -159,7 +164,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             try {
                 kathraSessionManager.handleSession(item.getRight());
                 Map<String, Object> extra = getBinaryRepositorySettingForPipeline(catalogEntryPackage.getBinaryRepository());
-                Pipeline pipeline = pipelineService.create(item.getLeft().getName(), group.getPath() + "/helm-charts", item.getLeft().getSourceRepository(), pipelineTemplate, (String) item.getLeft().getMetadata().get(CatalogEntryService.METADATA_DEPLOY_KEY), afterPipelineCreated, extra);
+                Pipeline pipeline = pipelineService.create(item.getLeft().getName(), group.getPath() + "/helm-charts" + item.getLeft().getName(), item.getLeft().getSourceRepository(), pipelineTemplate, (String) item.getLeft().getMetadata().get(METADATA_DEPLOY_KEY), afterPipelineCreated, extra);
                 item.getLeft().pipeline(pipeline);
                 this.patch(new CatalogEntryPackage().id(item.getLeft().getId()).pipeline(pipeline));
             } catch (ApiException e) {
@@ -171,8 +176,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             try {
                 kathraSessionManager.handleSession(session);
                 sourceRepositoryService.commitArchiveAndTag(catalogEntryPackage.getSourceRepository(), DEFAULT_BRANCH, generatedSource, null, FIRST_VERSION);
-                // CREATE PIPELINE
-                createPipeline.accept(Pair.of(catalogEntryPackage, session));
+                // CREATE PIPELINEcreatePipeline.accept(Pair.of(catalogEntryPackage, session));
             } catch (ApiException e) {
                 manageError(catalogEntryPackage, e);
             }
@@ -181,9 +185,9 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         final Consumer<Pair<CatalogEntryPackage, Session>> createSourceRepository = (item) -> {
             try {
                 kathraSessionManager.handleSession(item.getRight());
-                String[] deployKeys = {(String) item.getLeft().getMetadata().get(CatalogEntryService.METADATA_DEPLOY_KEY)};
+                String[] deployKeys = {(String) item.getLeft().getMetadata().get(METADATA_DEPLOY_KEY)};
                 // CREATE REPOSITORY AND PUSH SOURCE WHEN IT IS READY
-                SourceRepository sourceRepository = sourceRepositoryService.create(item.getLeft().getName(), group.getPath() + "/helm-charts", deployKeys, pushSource);
+                SourceRepository sourceRepository = sourceRepositoryService.create(item.getLeft().getName(), group.getPath() + "/helm-charts/" + item.getLeft().getName(), deployKeys, pushSource);
                 item.getLeft().sourceRepository(sourceRepository);
                 this.patch(new CatalogEntryPackage().id(item.getLeft().getId()).sourceRepository(sourceRepository));
             } catch (ApiException e) {
@@ -194,7 +198,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         createSourceRepository.accept(Pair.of(catalogEntryPackage, session));
     }
 
-    private List<CodeGenTemplateArgument> addValuesForHelmSrcTemplate(Implementation implementation) {
+    private List<CodeGenTemplateArgument> addValuesForHelmSrcTemplate(Implementation implementation, BinaryRepository binaryRepository) {
         List<CodeGenTemplateArgument> template = new ArrayList<>();
         template.add(new CodeGenTemplateArgument().key("CHART_NAME").value(implementation.getName()));
         template.add(new CodeGenTemplateArgument().key("CHART_DESCRIPTION").value(implementation.getDescription()));
@@ -202,7 +206,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         template.add(new CodeGenTemplateArgument().key("APP_VERSION").value(FIRST_VERSION));
         template.add(new CodeGenTemplateArgument().key("IMAGE_NAME").value(implementation.getName()));
         template.add(new CodeGenTemplateArgument().key("IMAGE_TAG").value(ImplementationVersionService.DEFAULT_BRANCH));
-        template.add(new CodeGenTemplateArgument().key("IMAGE_REGISTRY").value(implementation.getBinaryRepository().getUrl()));
+        template.add(new CodeGenTemplateArgument().key("IMAGE_REGISTRY").value(binaryRepository.getUrl()));
         return template;
     }
 
@@ -225,10 +229,11 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         updateStatus(catalogEntryPackage, Resource.StatusEnum.READY);
     }
 
-    private Pair<CodegenClient, CodeGenTemplate> getHelmTemplate(CatalogEntryPackage.PackageTypeEnum typeEnum) throws ApiException {
+    private Pair<CodegenClient, CodeGenTemplate> getHelmTemplate(CatalogEntryPackage.PackageTypeEnum typeEnum, String templateName) throws ApiException {
         return codeGenProxyService.getAllTemplates().stream()
-                .filter(i -> i.getRight().stream().anyMatch(t -> t.equals(typeEnum.getValue())))
-                .map(i -> Pair.of(i.getMiddle(), i.getRight().stream().filter(t -> t.equals(typeEnum.getValue())).findFirst().get()))
+                .filter(i -> i.getLeft().equals(typeEnum.getValue()))
+                .map(i -> Pair.of(i.getMiddle(),
+                        i.getRight().stream().filter(t -> t.getName().equals(templateName)).findFirst().get()))
                 .findFirst().get();
     }
 
