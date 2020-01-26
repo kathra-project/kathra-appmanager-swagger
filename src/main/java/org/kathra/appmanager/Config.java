@@ -35,6 +35,7 @@ public class Config extends ConfigManager {
     private String resourceManagerUrl;
     private String catalogManagerUrl;
     private String binaryManagerHarborUrl;
+    private String webHookPipelineUrl;
 
     private String imageRegistryHost;
     private boolean deleteZipFile;
@@ -43,11 +44,6 @@ public class Config extends ConfigManager {
         codegenUrlHelm = getProperty("KATHRA_APPMANAGER_CODEGEN_HELM_URL");
         if (!codegenUrlHelm.startsWith("http"))
             codegenUrlHelm = "http://" + codegenUrlHelm;
-
-
-        codegenUrlSwagger = getProperty("KATHRA_APPMANAGER_CODEGEN_URL");
-        if (!codegenUrlSwagger.startsWith("http"))
-            codegenUrlSwagger = "http://" + codegenUrlSwagger;
 
         codegenUrlSwagger = getProperty("KATHRA_APPMANAGER_CODEGEN_SWAGGER_URL");
         if (!codegenUrlSwagger.startsWith("http"))
@@ -72,11 +68,12 @@ public class Config extends ConfigManager {
 
 
         binaryManagerHarborUrl = getProperty("KATHRA_APPMANAGER_BINARYMANAGER_HARBOR_URL");
-        if (!pipelineManagerUrl.startsWith("http"))
+        if (!binaryManagerHarborUrl.startsWith("http"))
             binaryManagerHarborUrl = "http://" + binaryManagerHarborUrl;
 
 
         imageRegistryHost = getProperty("IMAGE_REGISTRY_HOST");
+        webHookPipelineUrl = getProperty("KATHRA_PIPELINE_WEBHOOK_URL");
 
         deleteZipFile = Boolean.valueOf(getProperty("KATHRA_APPMANAGER_DELETE_ZIP_FILE", "true"));
     }
@@ -115,4 +112,8 @@ public class Config extends ConfigManager {
     public String getCatalogManagerUrl() {return catalogManagerUrl;}
 
     public String getBinaryManagerHarbor() {return binaryManagerHarborUrl;}
+
+    public Object getWebHookPipelineUrl() {
+        return webHookPipelineUrl;
+    }
 }

@@ -21,8 +21,12 @@
 package org.kathra.appmanager.implementation;
 
 import org.kathra.appmanager.apiversion.ApiVersionService;
+import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.component.ComponentService;
+import org.kathra.appmanager.group.GroupService;
 import org.kathra.appmanager.implementationversion.ImplementationVersionService;
+import org.kathra.appmanager.model.CatalogEntryTemplate;
+import org.kathra.appmanager.model.CatalogEntryTemplateArgument;
 import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
@@ -59,6 +63,8 @@ public class ImplementationService extends AbstractResourceService<Implementatio
     public static final String METADATA_ARTIFACT_NAME = "artifact-artifactName";
     private static final Pattern PATTERN_NAME = Pattern.compile("^[0-9A-Za-z_\\-]+$");
 
+    private static final String FIRST_VERSION = "1.0.0";
+
     // Clients and Services
     private ApiVersionService apiVersionService;
     private ComponentService componentService;
@@ -66,6 +72,9 @@ public class ImplementationService extends AbstractResourceService<Implementatio
     private PipelineService pipelineService;
     private ImplementationsClient resourceManager;
     private ImplementationVersionService implementationVersionService;
+
+    private GroupService groupService;
+    private CatalogEntryService catalogEntryService;
 
     public ImplementationService() {
 
@@ -79,10 +88,11 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         this.sourceRepositoryService = serviceInjection.getService(SourceRepositoryService.class);
         this.implementationVersionService = serviceInjection.getService(ImplementationVersionService.class);
         this.pipelineService = serviceInjection.getService(PipelineService.class);
+        this.catalogEntryService = serviceInjection.getService(CatalogEntryService.class);
     }
 
 
-    public ImplementationService(ComponentService componentService, ApiVersionService apiVersionService, SourceRepositoryService sourceRepositoryService, ImplementationVersionService implementationVersionService, ImplementationsClient resourceManager, PipelineService pipelineService, KathraSessionManager kathraSessionManager) {
+    public ImplementationService(ComponentService componentService, ApiVersionService apiVersionService, SourceRepositoryService sourceRepositoryService, ImplementationVersionService implementationVersionService, ImplementationsClient resourceManager, PipelineService pipelineService, KathraSessionManager kathraSessionManager, CatalogEntryService catalogEntryService) {
         // Init with clients and services
         this.componentService = componentService;
         this.apiVersionService = apiVersionService;
@@ -91,6 +101,7 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         this.resourceManager = resourceManager;
         this.pipelineService = pipelineService;
         super.kathraSessionManager = kathraSessionManager;
+        this.catalogEntryService = catalogEntryService;
     }
 
     public Implementation create(@NotNull String name, Implementation.LanguageEnum language, ApiVersion apiVersion, String description) throws ApiException {
@@ -247,6 +258,11 @@ public class ImplementationService extends AbstractResourceService<Implementatio
                 switch (firstVersion.getStatus()) {
                     case READY:
                         updateStatus(implementationWithDetails, Resource.StatusEnum.READY);
+                        try {
+                            initCatalogEntryService(implementationWithDetails);
+                        } catch (ApiException e) {
+                            e.printStackTrace();
+                        }
                         break;
                     default:
                         throw new IllegalStateException("ImplementationVersion '" + firstVersion.getId() + "' is not READY");
@@ -258,10 +274,22 @@ public class ImplementationService extends AbstractResourceService<Implementatio
             }
         };
         try {
-            implementationWithDetails.addVersionsItem(implementationVersionService.create(implementationWithDetails, apiVersion, "1.0.0", callbackAfterImplementationVersionReadyOrError));
+            implementationWithDetails.addVersionsItem(implementationVersionService.create(implementationWithDetails, apiVersion, FIRST_VERSION, callbackAfterImplementationVersionReadyOrError));
         } catch (Exception e) {
             manageError(implementationWithDetails, e);
         }
+    }
+
+    private void initCatalogEntryService(final Implementation implementation) throws ApiException {
+        CatalogEntryTemplate template = new CatalogEntryTemplate().name("RestApiFromImplementation")
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME").value(implementation.getName()))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION").value(implementation.getDescription()))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH").value((String) implementation.getMetadata().get(METADATA_GROUP_PATH)))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_ID").value(implementation.getId()))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_VERSION").value(FIRST_VERSION));
+        CatalogEntry catalogEntry = this.catalogEntryService.create(template);
+        implementation.addCatalogEntriesItem(catalogEntry);
+        patch(new Implementation().id(implementation.getId()).addCatalogEntriesItem(catalogEntry));
     }
 
 

@@ -105,7 +105,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         return getValueOptional(template, key).orElse(null);
     }
 
-    public List<CatalogEntryPackage> createPackagesFromImplementation(CatalogEntryTemplate template, CatalogEntry catalogEntry, Implementation implementation, Group group) {
+    private List<CatalogEntryPackage> createPackagesFromImplementation(CatalogEntryTemplate template, CatalogEntry catalogEntry, Implementation implementation, Group group) {
         List<CatalogEntryPackage>  packages = new ArrayList<>();
         // CREATE CATALOG ENTRY PACKAGE
         try {
@@ -162,7 +162,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
                 throw new IllegalArgumentException("NAME should be defined\"");
             }
             if (getByName(getValueOrEmpty(template, "NAME")).isPresent()) {
-                throw new IllegalArgumentException("Component already exists");
+                throw new IllegalArgumentException("CatalogEntry already exists");
             }
             if (StringUtils.isEmpty(getValueOrEmpty(template, "GROUP_PATH"))) {
                 throw new IllegalArgumentException("GROUP_PATH should be defined");

@@ -26,10 +26,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
+import org.kathra.appmanager.model.CatalogEntryTemplate;
 import org.kathra.core.model.Asset;
+import org.kathra.core.model.CatalogEntry;
 import org.kathra.core.model.Implementation;
 import org.kathra.core.model.Resource;
 import org.kathra.utils.ApiException;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -80,7 +83,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
     @Test
     public void given_nominal_args_when_create_and_wait_until_ready_then_implementation_is_ready() throws Exception {
 
-        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
+        Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),"desc");
 
         Assertions.assertEquals(IMPL_ID, implemPending.getId());
         Assertions.assertEquals(IMPL_NAME, implemPending.getName());
@@ -102,6 +105,21 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
         Assertions.assertEquals(COMPONENT_ARTIFACT_GROUP_ID, implemReady.getMetadata().get(ImplementationService.METADATA_ARTIFACT_GROUP_ID));
         Assertions.assertEquals(GROUP_ID, implemReady.getMetadata().get(ImplementationService.METADATA_GROUP_ID));
         Assertions.assertEquals(GROUP_PATH, implemReady.getMetadata().get(ImplementationService.METADATA_GROUP_PATH));
+
+        // CHECK CATALOG ENTRY IS CREATED
+        ArgumentCaptor<CatalogEntryTemplate> catalogEntryTemplate = ArgumentCaptor.forClass(CatalogEntryTemplate.class);
+        Mockito.verify(this.catalogEntryService).create(catalogEntryTemplate.capture());
+        Assertions.assertEquals("RestApiFromImplementation",catalogEntryTemplate.getValue().getName());
+        Assertions.assertEquals(IMPL_NAME,catalogEntryTemplate.getValue().getArguments().stream().filter(arg -> arg.getKey().equals("NAME")).findFirst().get().getValue());
+        Assertions.assertEquals("desc",catalogEntryTemplate.getValue().getArguments().stream().filter(arg -> arg.getKey().equals("DESCRIPTION")).findFirst().get().getValue());
+        Assertions.assertEquals(GROUP_PATH,catalogEntryTemplate.getValue().getArguments().stream().filter(arg -> arg.getKey().equals("GROUP_PATH")).findFirst().get().getValue());
+        Assertions.assertEquals(IMPL_ID,catalogEntryTemplate.getValue().getArguments().stream().filter(arg -> arg.getKey().equals("IMPLEMENTATION_ID")).findFirst().get().getValue());
+        Assertions.assertEquals("1.0.0",catalogEntryTemplate.getValue().getArguments().stream().filter(arg -> arg.getKey().equals("IMPLEMENTATION_VERSION")).findFirst().get().getValue());
+
+        ArgumentCaptor<Implementation> implPatched = ArgumentCaptor.forClass(Implementation.class);
+        Mockito.verify(resourceManager, Mockito.times(4)).updateImplementationAttributes(Mockito.any(), implPatched.capture());
+        Assertions.assertTrue(implPatched.getValue().getCatalogEntries().stream().filter(e -> e.getId().equals(CATALOG_ENTRY_ID)).findFirst().isPresent());
+
     }
 
     @Test
