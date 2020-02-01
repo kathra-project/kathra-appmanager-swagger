@@ -183,7 +183,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 pipelineTemplate = Pipeline.TemplateEnum.HELM_PACKAGE;
                 binaryRepository = binaryRepositoryService.getBinaryRepositoryFromGroupAndType(group, BinaryRepository.TypeEnum.HELM).stream().findFirst().orElse(null);
                 BinaryRepository binaryRepositoryDocker = binaryRepositoryService.getBinaryRepositoryFromGroupAndType(group, BinaryRepository.TypeEnum.DOCKER_IMAGE).stream().findFirst().orElse(null);
-                templateWithClient.getRight().arguments(addValuesForHelmSrcTemplate(implementation, binaryRepository, binaryRepositoryDocker));
+                templateWithClient.getRight().arguments(addValuesForHelmSrcTemplate(catalogEntry.getName(), implementation, binaryRepository, binaryRepositoryDocker));
                 break;
             default:
                 throw new NotImplementedException("Type '"+type.getValue()+"' not implemented");
@@ -265,13 +265,13 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         createSourceRepository.accept(Pair.of(catalogEntryPackage, session));
     }
 
-    private List<CodeGenTemplateArgument> addValuesForHelmSrcTemplate(Implementation implementation, BinaryRepository binaryRepositoryHelm, BinaryRepository binaryRepositoryApp) {
+    private List<CodeGenTemplateArgument> addValuesForHelmSrcTemplate(String catalogEntryName, Implementation implementation, BinaryRepository binaryRepositoryHelm, BinaryRepository binaryRepositoryApp) {
         List<CodeGenTemplateArgument> template = new ArrayList<>();
-        template.add(new CodeGenTemplateArgument().key("CHART_NAME").value(implementation.getName()));
+        template.add(new CodeGenTemplateArgument().key("CHART_NAME").value(catalogEntryName));
         template.add(new CodeGenTemplateArgument().key("CHART_DESCRIPTION").value(implementation.getDescription()));
         template.add(new CodeGenTemplateArgument().key("CHART_VERSION").value(FIRST_VERSION));
         template.add(new CodeGenTemplateArgument().key("APP_VERSION").value(FIRST_VERSION));
-        template.add(new CodeGenTemplateArgument().key("IMAGE_NAME").value(implementation.getName()));
+        template.add(new CodeGenTemplateArgument().key("IMAGE_NAME").value(implementation.getName().toLowerCase()));
         template.add(new CodeGenTemplateArgument().key("IMAGE_TAG").value(ImplementationVersionService.DEFAULT_BRANCH));
         template.add(new CodeGenTemplateArgument().key("IMAGE_REGISTRY").value(binaryRepositoryApp.getUrl()));
         template.add(new CodeGenTemplateArgument().key("REGISTRY_HOST").value(binaryRepositoryHelm.getUrl()));
