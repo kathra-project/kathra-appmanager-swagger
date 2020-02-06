@@ -77,13 +77,23 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
     }
 
     public List<CatalogEntryTemplate> getTemplates() {
-        return ImmutableList.of(new CatalogEntryTemplate().name("RestApiFromImplementation")
-                            .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME"))
-                            .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION"))
-                            .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH"))
-                            .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_ID"))
-                            .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_VERSION"))
-        );
+
+        CatalogEntryTemplate restApiFromImplementation =  new CatalogEntryTemplate().name("RestApiFromImplementation")
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_ID"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_VERSION"));
+
+        CatalogEntryTemplate restApiFromImage =  new CatalogEntryTemplate().name("RestApiFromDockerImage")
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_NAME"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_TAG"))
+                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_REGISTRY"));
+
+        return ImmutableList.of(restApiFromImplementation, restApiFromImage);
     }
 
     private void validateTemplate(CatalogEntryTemplate template) {
@@ -118,6 +128,21 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         }
         return packages;
     }
+
+    private List<CatalogEntryPackage> createPackagesFromDockerImage(String imageRegistry, String imageName, String imageTag, CatalogEntry catalogEntry, Group group) {
+        List<CatalogEntryPackage>  packages = new ArrayList<>();
+        // CREATE CATALOG ENTRY PACKAGE
+        try {
+            for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
+                packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReady(catalogEntryPackage)));
+            }
+            patch(new CatalogEntry().id(catalogEntry.getId()).packages(catalogEntry.getPackages()));
+        } catch(Exception e) {
+            manageError(catalogEntry, e);
+        }
+        return packages;
+    }
+
 
     public void onPackageIsReady(CatalogEntryPackage catalogEntryPackage) {
         try {
@@ -177,6 +202,9 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
                     }
                     Implementation implementation = implementationService.getById(getValueOrEmpty(template, "IMPLEMENTATION_ID")).orElseThrow(() -> new IllegalArgumentException("Implementation with id '" + getValueOrEmpty(template, "IMPLEMENTATION_ID") + "' not found"));
                     executedPostInsertedInDb = (catalogEntry) -> createPackagesFromImplementation(template, catalogEntry, implementation, group);
+                    break;
+                case "RestApiFromDockerImage":
+                    executedPostInsertedInDb = (catalogEntry) -> createPackagesFromDockerImage(getValueOrEmpty(template, "IMAGE_REGISTRY"), getValueOrEmpty(template, "IMAGE_NAME"), getValueOrEmpty(template, "IMAGE_TAG"), catalogEntry, group);
                     break;
                 default:
                     throw new NotImplementedException("Template '"+template.getName()+"' not implemented");
