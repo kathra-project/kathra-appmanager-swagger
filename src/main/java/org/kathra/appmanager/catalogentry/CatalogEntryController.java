@@ -20,25 +20,17 @@
  */
 package org.kathra.appmanager.catalogentry;
 
-import javassist.NotFoundException;
 import org.apache.camel.cdi.ContextName;
 import org.kathra.appmanager.Config;
-import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.catalogentrypackage.CatalogEntryPackageService;
-import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.model.CatalogEntryTemplate;
 import org.kathra.appmanager.service.CatalogEntriesService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
-import org.kathra.codegen.model.CodeGenTemplate;
 import org.kathra.core.model.*;
-import org.kathra.utils.KathraException;
 import org.kathra.utils.KathraRuntimeException;
 
-import javax.activation.FileDataSource;
 import javax.inject.Named;
-import java.io.File;
-import java.security.InvalidParameterException;
 import java.util.List;
 
 /**
@@ -102,7 +94,7 @@ public class CatalogEntryController implements CatalogEntriesService {
     }
 
     @Override
-    public List<CatalogEntryTemplate> getCatalogEntryTemplates() throws Exception {
-        return catalogEntryService.getTemplates();
+    public List<CatalogEntryTemplate> getCatalogEntryTemplates() {
+        return new CatalogEntryTemplates().getTemplates();
     }
 }

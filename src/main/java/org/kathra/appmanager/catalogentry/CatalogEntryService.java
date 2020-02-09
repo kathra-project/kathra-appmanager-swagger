@@ -1,6 +1,5 @@
 package org.kathra.appmanager.catalogentry;
 
-import com.google.common.collect.ImmutableList;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import org.kathra.appmanager.catalogentrypackage.CatalogEntryPackageService;
@@ -29,6 +28,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
     private CatalogEntriesClient resourceManager;
     private ImplementationService implementationService;
     private GroupService groupService;
+    private CatalogEntryTemplates catalogEntryTemplates;
 
     public static final String METADATA_GROUP_PATH = "groupPath";
     public static final String METADATA_GROUP_ID= "groupId";
@@ -45,16 +45,18 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         this.catalogEntryPackageService = service.getService(CatalogEntryPackageService.class);
         this.groupService = service.getService(GroupService.class);
         this.implementationService = service.getService(ImplementationService.class);
+        this.catalogEntryTemplates = new CatalogEntryTemplates();
     }
     public CatalogEntryService(CatalogEntriesClient resourceManager, CatalogEntryPackageService catalogEntryPackageService, KathraSessionManager kathraSessionManager) {
         this.resourceManager = resourceManager;
         super.kathraSessionManager = kathraSessionManager;
         this.catalogEntryPackageService = catalogEntryPackageService;
+        this.catalogEntryTemplates = new CatalogEntryTemplates();
     }
 
     @Override
     protected void patch(CatalogEntry object) throws ApiException {
-        resourceManager.updateCatalogEntryAttributes(object.getId(), object);;
+        resourceManager.updateCatalogEntryAttributes(object.getId(), object);
     }
 
     protected void delete(CatalogEntry object) throws ApiException {
@@ -76,37 +78,14 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         this.resourceManager = resourceManager;
     }
 
-    public List<CatalogEntryTemplate> getTemplates() {
-
-        CatalogEntryTemplate restApiFromImplementation =  new CatalogEntryTemplate().name("RestApiFromImplementation")
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_ID"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMPLEMENTATION_VERSION"));
-
-        CatalogEntryTemplate restApiFromImage =  new CatalogEntryTemplate().name("RestApiFromDockerImage")
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("NAME"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("DESCRIPTION"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("GROUP_PATH"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_NAME"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_TAG"))
-                .addArgumentsItem(new CatalogEntryTemplateArgument().key("IMAGE_REGISTRY"));
-
-        return ImmutableList.of(restApiFromImplementation, restApiFromImage);
-    }
-
     private void validateTemplate(CatalogEntryTemplate template) {
-        CatalogEntryTemplate templateWithContraints = getTemplateByName(template.getName());
+        CatalogEntryTemplate templateWithContraints = catalogEntryTemplates.getTemplateByName(template.getName());
         for (CatalogEntryTemplateArgument argument :templateWithContraints.getArguments()){
             String contrainst = argument.getContrainst();
             // TODO : check contraint with template.arguments()
         }
     }
 
-    public CatalogEntryTemplate getTemplateByName(String name) {
-        return getTemplates().stream().filter(t -> t.getName().equals(name)).findFirst().orElse(null);
-    }
 
     private Optional<String> getValueOptional(CatalogEntryTemplate template, String key) {
         return template.getArguments().stream().filter(i -> key.equals(i.getKey())).map(CatalogEntryTemplateArgument::getValue).findFirst();
@@ -115,14 +94,13 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         return getValueOptional(template, key).orElse(null);
     }
 
-    private List<CatalogEntryPackage> createPackagesFromImplementation(CatalogEntryTemplate template, CatalogEntry catalogEntry, Implementation implementation, Group group) {
+    private List<CatalogEntryPackage> createPackagesFromImplementation(CatalogEntry catalogEntry, Implementation implementation, Group group) {
         List<CatalogEntryPackage>  packages = new ArrayList<>();
         // CREATE CATALOG ENTRY PACKAGE
         try {
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
                 packages.add(catalogEntryPackageService.createPackageFromImplementation(catalogEntry, type, implementation, group, (catalogEntryPackage) -> onPackageIsReady(catalogEntryPackage)));
             }
-            patch(new CatalogEntry().id(catalogEntry.getId()).packages(catalogEntry.getPackages()));
         } catch(Exception e) {
             manageError(catalogEntry, e);
         }
@@ -136,7 +114,6 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
                 packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReady(catalogEntryPackage)));
             }
-            patch(new CatalogEntry().id(catalogEntry.getId()).packages(catalogEntry.getPackages()));
         } catch(Exception e) {
             manageError(catalogEntry, e);
         }
@@ -162,14 +139,17 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
             // Check all packages are READY
             for(CatalogEntryPackage p : catalogEntryWithDetails.getPackages()) {
                 Optional<CatalogEntryPackage> packageWithDetails = catalogEntryPackageService.getById(p.getId());
+                if (catalogEntryPackageService.isError(packageWithDetails.get())) {
+                    throw new IllegalStateException("CatalogEntryPackage "+packageWithDetails.get().getId()+" has an error");
+                }
                 if (!catalogEntryPackageService.isReady(packageWithDetails.get())) {
                     return;
                 }
             }
             // CatalogEntry is READY
             updateStatus(catalogEntryWithDetails, Resource.StatusEnum.READY);
-        } catch (ApiException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            super.manageError(catalogEntryWithDetails, e);
         }
     }
 
@@ -179,7 +159,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
 
     public CatalogEntry create(CatalogEntryTemplate template) throws ApiException {
         try {
-            CatalogEntryTemplate ref = getTemplateByName(template.getName());
+            CatalogEntryTemplate ref = catalogEntryTemplates.getTemplateByName(template.getName());
             if (ref == null) {
                 throw new IllegalArgumentException("Template not found");
             }
@@ -201,7 +181,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
                         throw new IllegalArgumentException("IMPLEMENTATION_ID should be defined");
                     }
                     Implementation implementation = implementationService.getById(getValueOrEmpty(template, "IMPLEMENTATION_ID")).orElseThrow(() -> new IllegalArgumentException("Implementation with id '" + getValueOrEmpty(template, "IMPLEMENTATION_ID") + "' not found"));
-                    executedPostInsertedInDb = (catalogEntry) -> createPackagesFromImplementation(template, catalogEntry, implementation, group);
+                    executedPostInsertedInDb = (catalogEntry) -> createPackagesFromImplementation(catalogEntry, implementation, group);
                     break;
                 case "RestApiFromDockerImage":
                     executedPostInsertedInDb = (catalogEntry) -> createPackagesFromDockerImage(getValueOrEmpty(template, "IMAGE_REGISTRY"), getValueOrEmpty(template, "IMAGE_NAME"), getValueOrEmpty(template, "IMAGE_TAG"), catalogEntry, group);
