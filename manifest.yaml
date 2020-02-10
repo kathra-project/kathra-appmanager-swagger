@@ -89,12 +89,12 @@ objects:
           - name: KEYCLOAK_CLIENT_ID
             valueFrom:
               secretKeyRef:
-                name: kathra-keycloak-secret
+                name: keycloak-secret
                 key: KEYCLOAK_CLIENT_ID
           - name: KEYCLOAK_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
-                name: kathra-keycloak-secret
+                name: keycloak-secret
                 key: KEYCLOAK_CLIENT_SECRET
           resources:
             limits:

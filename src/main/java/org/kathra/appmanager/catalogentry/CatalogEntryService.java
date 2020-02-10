@@ -99,7 +99,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         // CREATE CATALOG ENTRY PACKAGE
         try {
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
-                packages.add(catalogEntryPackageService.createPackageFromImplementation(catalogEntry, type, implementation, group, (catalogEntryPackage) -> onPackageIsReady(catalogEntryPackage)));
+                packages.add(catalogEntryPackageService.createPackageFromImplementation(catalogEntry, type, implementation, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
             }
         } catch(Exception e) {
             manageError(catalogEntry, e);
@@ -112,7 +112,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         // CREATE CATALOG ENTRY PACKAGE
         try {
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
-                packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReady(catalogEntryPackage)));
+                packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
             }
         } catch(Exception e) {
             manageError(catalogEntry, e);
@@ -121,11 +121,11 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
     }
 
 
-    public void onPackageIsReady(CatalogEntryPackage catalogEntryPackage) {
+    public void onPackageIsReadyOrError(CatalogEntryPackage catalogEntryPackage) {
         try {
             CatalogEntry catalogEntry = resourceManager.getCatalogEntry(catalogEntryPackage.getCatalogEntry().getId());
             processOnPendingStatus(catalogEntry);
-        } catch (ApiException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

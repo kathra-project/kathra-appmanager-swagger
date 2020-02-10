@@ -176,18 +176,18 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 .packageType(type)
                 .catalogEntry(catalogEntry)
                 .binaryRepository(binaryRepository);
-        final CatalogEntryPackage catalogEntryPackCatalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
+        final CatalogEntryPackage catalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
         try {
-            if (StringUtils.isEmpty(catalogEntryPackCatalogEntryPackageAdded.getId())) {
+            if (StringUtils.isEmpty(catalogEntryPackageAdded.getId())) {
                 throw new IllegalStateException("CatalogEntry id should be defined");
             }
         } catch (Exception e) {
-            manageError(catalogEntryPackCatalogEntryPackageAdded, e);
-            throw e;
+            manageError(catalogEntryPackageAdded, e);
+            callback.accept(catalogEntryPackageAdded);
         }
 
-        initSrcRepoAndPipeline(catalogEntryPackCatalogEntryPackageAdded, generatedSource, callback, pipelineTemplate, group);
-        return catalogEntryPackCatalogEntryPackageAdded;
+        initSrcRepoAndPipeline(catalogEntryPackageAdded, generatedSource, callback, pipelineTemplate, group);
+        return catalogEntryPackageAdded;
     }
 
     private void initSrcRepoAndPipeline(final CatalogEntryPackage catalogEntryPackage, File generatedSource, Consumer<CatalogEntryPackage> callback, Pipeline.TemplateEnum pipelineTemplate, Group group) {
@@ -198,7 +198,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             try {
                 kathraSessionManager.handleSession(session);
                 build(catalogEntryPackage, DEFAULT_BRANCH, ImmutableMap.of(), (i) -> onBuildDone(catalogEntryPackage, callback));
-            } catch (ApiException e) {
+            } catch (Exception e) {
                 manageError(catalogEntryPackage, e);
             }
         };
@@ -207,7 +207,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             try {
                 kathraSessionManager.handleSession(item.getRight());
                 initPipeline(item.getLeft(), group, pipelineTemplate, afterPipelineCreated);
-            } catch (ApiException e) {
+            } catch (Exception e) {
                 manageError(catalogEntryPackage, e);
             }
         };
@@ -218,7 +218,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 sourceRepositoryService.commitArchiveAndTag(catalogEntryPackage.getSourceRepository(), DEFAULT_BRANCH, generatedSource, null, FIRST_VERSION);
                 // CREATE PIPELINE
                 createPipeline.accept(Pair.of(catalogEntryPackage, session));
-            } catch (ApiException e) {
+            } catch (Exception e) {
                 manageError(catalogEntryPackage, e);
             }
         };
@@ -228,7 +228,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 kathraSessionManager.handleSession(item.getRight());
                 // CREATE REPOSITORY AND PUSH SOURCE WHEN IT IS READY
                 initSourceRepository(item.getLeft(), group, pushSource);
-            } catch (ApiException e) {
+            } catch (Exception e) {
                 manageError(catalogEntryPackage, e);
             }
         };
