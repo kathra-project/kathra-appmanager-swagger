@@ -89,6 +89,9 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         CatalogEntryPackage o = resourceManager.getCatalogEntryPackage(id);
         return (o == null) ? Optional.empty() : Optional.of(o);
     }
+    public List<CatalogEntryPackage> getAllFromDb() throws ApiException {
+        return this.resourceManager.getCatalogEntryPackages();
+    }
 
     @Override
     public List<CatalogEntryPackage> getAll() throws ApiException {
@@ -100,12 +103,12 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
         try {
             ExecutorService executorService = Executors.newFixedThreadPool(3);
-            Future<List<CatalogEntry>> allCatalogEntriesExec = executorService.submit(() -> this.catalogEntryService.getAll());
+            Future<List<CatalogEntry>> allCatalogEntriesExec = executorService.submit(() -> this.catalogEntryService.getAllFromDb());
             Future<List<CatalogEntryPackage>> allEntriesPackagesFromCatalogManagerExec = executorService.submit(() -> this.catalogManager.getAllCatalogEntryPackages());
             Future<List<CatalogEntryPackage>> allEntriesPackagesFromResourceManagerExec = executorService.submit(() -> this.resourceManager.getCatalogEntryPackages());
             executorService.shutdown();
             executorService.awaitTermination(3, TimeUnit.SECONDS);
-            allCatalogEntries = allCatalogEntriesExec.get().stream().collect(Collectors.toMap(CatalogEntry::getId, e -> e));
+            allCatalogEntries = allCatalogEntriesExec.get().stream().filter(i -> i.getId() != null).collect(Collectors.toMap(CatalogEntry::getId, e -> e));
             allEntriesPackagesFromCatalogManager = allEntriesPackagesFromCatalogManagerExec.get();
             allEntriesPackagesFromResourceManager = allEntriesPackagesFromResourceManagerExec.get();
         } catch(Exception e) {
@@ -218,6 +221,10 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 sourceRepositoryService.commitArchiveAndTag(catalogEntryPackage.getSourceRepository(), DEFAULT_BRANCH, generatedSource, null, FIRST_VERSION);
                 // CREATE PIPELINE
                 createPipeline.accept(Pair.of(catalogEntryPackage, session));
+            } catch (ApiException e) {
+                if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
+                    manageError(catalogEntryPackage, e);
+                }
             } catch (Exception e) {
                 manageError(catalogEntryPackage, e);
             }
@@ -269,10 +276,11 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
                 throw new IllegalStateException("Job "+buildId+" of pipeline "+pipeline.get().getPath()+ " have failed.");
             }
             updateStatus(catalogEntryPackage, Resource.StatusEnum.READY);
-        } catch (ApiException e) {
+        } catch (Exception e) {
             super.manageError(catalogEntryPackage, e);
+        } finally {
+            onSuccess.accept(catalogEntryPackage);
         }
-        onSuccess.accept(catalogEntryPackage);
     }
 
     private Pair<CodegenClient, CodeGenTemplate> getCodeGenClientAndCodeGenTemplateFromTemplate(CatalogEntryPackage.PackageTypeEnum typeEnum, String templateName) throws ApiException {

@@ -9,8 +9,10 @@ import org.kathra.appmanager.model.CatalogEntryTemplate;
 import org.kathra.appmanager.model.CatalogEntryTemplateArgument;
 import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
+import org.kathra.catalogmanager.client.ReadCatalogEntriesClient;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.CatalogEntriesClient;
+import org.kathra.resourcemanager.client.CatalogEntryPackagesClient;
 import org.kathra.utils.ApiException;
 import org.kathra.utils.KathraSessionManager;
 import org.kathra.utils.Session;
@@ -21,6 +23,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
 
@@ -33,7 +36,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
     public static final String METADATA_GROUP_PATH = "groupPath";
     public static final String METADATA_GROUP_ID= "groupId";
 
-    private static final Pattern PATTERN_NAME = Pattern.compile("^[0-9A-Za-z_\\-]+$");
+    private ReadCatalogEntriesClient catalogManager;
 
     public CatalogEntryService() {
 
@@ -46,6 +49,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         this.groupService = service.getService(GroupService.class);
         this.implementationService = service.getService(ImplementationService.class);
         this.catalogEntryTemplates = new CatalogEntryTemplates();
+        this.catalogManager = new ReadCatalogEntriesClient(service.getConfig().getCatalogManagerUrl(), service.getSessionManager());
     }
     public CatalogEntryService(CatalogEntriesClient resourceManager, CatalogEntryPackageService catalogEntryPackageService, KathraSessionManager kathraSessionManager) {
         this.resourceManager = resourceManager;
@@ -71,8 +75,26 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
 
     @Override
     public List<CatalogEntry> getAll() throws ApiException {
+        List<CatalogEntry> fromDb = getAllFromDb();
+        List<CatalogEntry> merged = new ArrayList<>(fromDb);
+        List<CatalogEntry> missingFromDb = getAllFromManager().parallelStream().filter(e -> fromDb.parallelStream().noneMatch(e2 -> e2.getName().equals(e.getName()))).collect(Collectors.toList());
+        merged.addAll(missingFromDb);
+        return merged;
+    }
+
+    public List<CatalogEntry> getAllFromDb() throws ApiException {
         return resourceManager.getCatalogEntries();
     }
+
+    private List<CatalogEntry> getAllFromManager() throws ApiException {
+        return catalogManager.getAllCatalogEntryPackages().stream().map(catalogEntryPackage -> {
+            CatalogEntry catalogEntry = catalogEntryPackage.getCatalogEntry();
+            catalogEntry.addPackagesItem(catalogEntryPackage);
+            catalogEntryPackage.setCatalogEntry(null);
+            return catalogEntry;
+        }).collect(Collectors.toList());
+    }
+
 
     public CatalogEntryService(CatalogEntriesClient resourceManager) {
         this.resourceManager = resourceManager;
@@ -141,8 +163,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
                 Optional<CatalogEntryPackage> packageWithDetails = catalogEntryPackageService.getById(p.getId());
                 if (catalogEntryPackageService.isError(packageWithDetails.get())) {
                     throw new IllegalStateException("CatalogEntryPackage "+packageWithDetails.get().getId()+" has an error");
-                }
-                if (!catalogEntryPackageService.isReady(packageWithDetails.get())) {
+                } else if (!catalogEntryPackageService.isReady(packageWithDetails.get())) {
                     return;
                 }
             }
@@ -162,14 +183,11 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
             CatalogEntryTemplate ref = catalogEntryTemplates.getTemplateByName(template.getName());
             if (ref == null) {
                 throw new IllegalArgumentException("Template not found");
-            }
-            if (StringUtils.isEmpty(getValueOrEmpty(template, "NAME"))) {
+            } else if (StringUtils.isEmpty(getValueOrEmpty(template, "NAME"))) {
                 throw new IllegalArgumentException("NAME should be defined\"");
-            }
-            if (getByName(getValueOrEmpty(template, "NAME")).isPresent()) {
+            } else if (getByName(getValueOrEmpty(template, "NAME")).isPresent()) {
                 throw new IllegalArgumentException("CatalogEntry already exists");
-            }
-            if (StringUtils.isEmpty(getValueOrEmpty(template, "GROUP_PATH"))) {
+            } else if (StringUtils.isEmpty(getValueOrEmpty(template, "GROUP_PATH"))) {
                 throw new IllegalArgumentException("GROUP_PATH should be defined");
             }
             final Group group = groupService.findByPath(getValueOrEmpty(template, "GROUP_PATH")).orElseThrow(() -> new IllegalArgumentException("Group not found"));
@@ -233,4 +251,5 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
             throw e;
         }
     }
+
 }

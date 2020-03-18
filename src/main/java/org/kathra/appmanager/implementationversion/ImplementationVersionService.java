@@ -113,7 +113,6 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
     public List<ImplementationVersion> getImplementationVersions(List<Implementation> implementations) throws ApiException {
         if (implementations == null || implementations.isEmpty())
             return new ArrayList<>();
-
         return this.implementationVersionsClient.getImplementationVersions()
                 .stream().filter(implementationVersion -> implementations.stream().anyMatch(implementation -> implementationVersion.getImplementation().getId().equals(implementation.getId()))).collect(Collectors.toList());
     }
@@ -140,7 +139,6 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
             implementationVersion.setApiVersion(apiVersion);
         }
         return implementationVersions;
-
     }
 
 
@@ -214,8 +212,6 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
     }
 
     private void generateAndUpdateSrc(ImplementationVersion implVersion, File apiFile) throws ApiException {
-        String artifactName = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME);
-        String artifactGroup = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_GROUP_ID);
         SourceRepository sourceRepository = sourceRepositoryService.getById(implVersion.getImplementation().getSourceRepository().getId()).orElseThrow(() -> new IllegalStateException("Unable to find SourceRepository "+implVersion.getImplementation().getSourceRepository().getId()));
         // generate source code
         File implementationFiles = codegenClient.generateFromTemplate(getCodeGenTemplate(implVersion, apiFile));
@@ -229,8 +225,7 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
                 throw new IllegalStateException("Commit is null");
             }
         } catch(ApiException e) {
-            // PRECONDITION FAILED EXCEPTION IF THROWS WHEN SOURCE REPOSITORY IS ALREADY UPDATED
-            if (e.getCode() != KathraException.ErrorCode.PRECONDITION_FAILED.getCode()) {
+            if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
                 throw e;
             }
         }

@@ -41,6 +41,7 @@ import org.apache.commons.lang3.StringUtils;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -121,7 +122,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
             // Add x-artifactName if not present
             String swagger = FileUtils.readFileToString(apiFile, "UTF-8");
             swagger = StringUtils.replace(swagger,"  x-groupId","  x-artifactName: "+componentWithDetails.getName().toLowerCase()+"\n  x-groupId");
-            FileUtils.writeStringToFile(apiFile, swagger, Charset.forName("UTF-8"),false);
+            FileUtils.writeStringToFile(apiFile, swagger, StandardCharsets.UTF_8,false);
 
             apiVersion.getMetadata().put(METADATA_API_ARTIFACT_NAME, componentWithDetails.getName().toLowerCase());
         }
@@ -191,8 +192,8 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
             throw new IllegalArgumentException("ApiVersion is null.");
         } else if (apiFile == null) {
             throw new IllegalArgumentException("File is null.");
-        } else if (!isReady(apiVersion)) {
-            //throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is not READY.");
+        // } else if (!isReady(apiVersion))
+        //      throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is not READY.");
         } else if (apiVersion.isReleased()) {
             throw new IllegalStateException("ApiVersion '" + apiVersion.getId() + "' is already released.");
         }
@@ -206,11 +207,9 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
 
         if (!apiVersionFromFile.getVersion().equals(apiVersion.getVersion())) {
             throw new IllegalArgumentException("ApiVersion and apiFile have different version. ApiVersion=" + apiVersion.getVersion() + " apiFile=" + apiVersionFromFile.getVersion());
-        }
-        if (!apiVersion.getMetadata().get(METADATA_API_GROUP_ID).equals(apiVersionFromFile.getMetadata().get(METADATA_API_GROUP_ID))) {
+        } else if (!apiVersion.getMetadata().get(METADATA_API_GROUP_ID).equals(apiVersionFromFile.getMetadata().get(METADATA_API_GROUP_ID))) {
             throw new IllegalArgumentException("ApiVersion and apiFile have different artifact's groupId. ApiVersion=" + apiVersion.getMetadata().get(METADATA_API_GROUP_ID) + " apiFile=" + apiVersionFromFile.getMetadata().get(METADATA_API_GROUP_ID));
-        }
-        if (!apiVersion.getMetadata().get(METADATA_API_ARTIFACT_NAME).equals(apiVersionFromFile.getMetadata().get(METADATA_API_ARTIFACT_NAME))) {
+        } else if (!apiVersion.getMetadata().get(METADATA_API_ARTIFACT_NAME).equals(apiVersionFromFile.getMetadata().get(METADATA_API_ARTIFACT_NAME))) {
             throw new IllegalArgumentException("ApiVersion and apiFile have different artifact's name. ApiVersion=" + apiVersion.getMetadata().get(METADATA_API_ARTIFACT_NAME) + " apiFile=" + apiVersionFromFile.getMetadata().get(METADATA_API_ARTIFACT_NAME));
         }
 
@@ -226,7 +225,6 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
                 kathraSessionManager.handleSession(session);
                 patch(apiVersion.apiRepositoryStatus(ApiVersion.ApiRepositoryStatusEnum.UPDATING));
                 updateSwaggerFileIntoApiRepository(apiVersion, permApiFile);
-
                 for (LibraryApiVersion libraryApiVersion : apiVersion.getLibrariesApiVersions()) {
                     libraryApiVersionService.update(libraryApiVersion, permApiFile, () -> notifyWhenLibraryRepositoryIsUpdated(apiVersion, permApiFile, callback));
                 }
@@ -276,19 +274,15 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
      * @throws ApiException
      */
     private void updateSwaggerFileIntoApiRepository(ApiVersion apiVersion, File file) throws ApiException, NotFoundException {
-
         Component component = componentService.getById(apiVersion.getComponent().getId()).orElseThrow(() -> new NotFoundException("Component not found"));
-
         SourceRepository sourceRepository = sourceRepositoryService.getById(component.getApiRepository().getId()).orElseThrow(() -> new NotFoundException("SourceRepository not found"));
-
         try {
             SourceRepositoryCommit commit = sourceRepositoryService.commitFileAndTag(sourceRepository, DEFAULT_BRANCH, file, "swagger.yaml", apiVersion.getVersion());
             if (commit == null || StringUtils.isEmpty(commit.getId())) {
                 throw new IllegalStateException("A commit with id should be return by SourceRepositoryService");
             }
         } catch(ApiException e) {
-            // PRECONDITION FAILED EXCEPTION IF THROWS WHEN SOURCE REPOSITORY IS ALREADY UPDATED
-            if (e.getCode() != KathraException.ErrorCode.PRECONDITION_FAILED.getCode()) {
+            if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
                 throw e;
             }
         }
@@ -603,21 +597,12 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
     }
 
     public List<ApiVersion> getApiVersions(List<Component> components) throws ApiException {
-
-        if (components == null || components.isEmpty())
-            return new ArrayList<>();
-
-        return this.resourceManager.getApiVersions()
+        return (components == null || components.isEmpty()) ? new ArrayList<>() : this.resourceManager.getApiVersions()
                 .stream().filter(apiVersion -> components.stream().anyMatch(component -> apiVersion.getComponent().getId().equals(component.getId()))).collect(Collectors.toList());
     }
 
     public List<ApiVersion> getApiVersionsForImplementationVersion(List<ImplementationVersion> implementationVersions) throws ApiException {
-
-        if (implementationVersions == null || implementationVersions.isEmpty())
-            return new ArrayList<>();
-
-        return this.resourceManager.getApiVersions()
-                .stream().filter(apiVersion -> implementationVersions.stream().anyMatch(implementationVersion -> apiVersion.getId().equals(implementationVersion.getApiVersion().getId()))).collect(Collectors.toList());
+        return (implementationVersions == null || implementationVersions.isEmpty()) ? new ArrayList<>() : this.resourceManager.getApiVersions().stream().filter(apiVersion -> implementationVersions.stream().anyMatch(implementationVersion -> apiVersion.getId().equals(implementationVersion.getApiVersion().getId()))).collect(Collectors.toList());
     }
 
     @Override
@@ -627,8 +612,7 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
 
     @Override
     public Optional<ApiVersion> getById(String id) throws ApiException {
-        ApiVersion apiVersion = resourceManager.getApiVersion(id);
-        return apiVersion == null ? Optional.empty() : Optional.of(apiVersion);
+        return Optional.of(resourceManager.getApiVersion(id));
     }
 
     @Override

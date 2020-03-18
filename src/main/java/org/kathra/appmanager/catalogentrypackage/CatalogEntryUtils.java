@@ -3,14 +3,19 @@ package org.kathra.appmanager.catalogentrypackage;
 import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
-import org.kathra.core.model.*;
+import org.kathra.core.model.BinaryRepository;
+import org.kathra.core.model.CatalogEntry;
+import org.kathra.core.model.CatalogEntryPackage;
+import org.kathra.core.model.CatalogEntryPackageVersion;
 import org.kathra.utils.ApiException;
 import org.kathra.utils.KathraSessionManager;
 import org.kathra.utils.Session;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 public class CatalogEntryUtils {
 

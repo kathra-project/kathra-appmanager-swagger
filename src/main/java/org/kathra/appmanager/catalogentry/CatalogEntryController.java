@@ -28,10 +28,13 @@ import org.kathra.appmanager.service.CatalogEntriesService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
+import org.kathra.utils.ApiException;
 import org.kathra.utils.KathraRuntimeException;
 
 import javax.inject.Named;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * @author julien.boubechtoula
@@ -68,7 +71,22 @@ public class CatalogEntryController implements CatalogEntriesService {
 
     @Override
     public List<CatalogEntry> getCatalogEntries() throws Exception {
-        return catalogEntryService.getAll();
+        List<CatalogEntry> entries = catalogEntryService.getAll();
+        addProviderIdPackages(entries);
+        return entries;
+    }
+
+    private void addProviderIdPackages(List<CatalogEntry> entries) throws ApiException {
+        Map<String, CatalogEntryPackage> packagesFromDb = catalogEntryPackageService.getAllFromDb().parallelStream().collect(Collectors.toMap(CatalogEntryPackage::getId, e -> e));
+        entries.forEach(entry -> {
+            for(CatalogEntryPackage pckg : entry.getPackages()) {
+                CatalogEntryPackage packgWithDetails = packagesFromDb.get(pckg.getId());
+                if (packgWithDetails != null) {
+                    entry.getPackages().remove(pckg);
+                    entry.getPackages().add(packgWithDetails);
+                }
+            }
+        });
     }
 
     @Override
