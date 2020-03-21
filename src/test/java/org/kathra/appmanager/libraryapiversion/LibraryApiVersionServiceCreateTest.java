@@ -185,7 +185,7 @@ public class LibraryApiVersionServiceCreateTest extends LibraryApiVersionService
     @Test
     public void given_occurred_error_during_call_codeGen_when_create_and_wait_until_readyRepositoryStatus_then_apiVersion_has_status_error() throws Exception {
 
-        Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("Unable to generate source");}).when(codegenClient).generateModel(Mockito.any(), Mockito.eq(Library.LanguageEnum.JAVA.toString()), Mockito.eq(ARTIFACT_NAME), Mockito.eq(ARTIFACT_GROUP), Mockito.eq(ARTIFACT_VERSION));
+        Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("Unable to generate source");}).when(codegenClient).generateFromTemplate(Mockito.any());
         underTest.create(getApiVersion(), getLibrary(), getApiFile(), getCallBack());
         waitUntilNotPending(5000);
         assertLibraryApiVersionErrorAndErrorApiRepositoryStatus(libraryApiVersionDb);

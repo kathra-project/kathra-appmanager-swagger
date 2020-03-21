@@ -61,6 +61,11 @@ objects:
               configMapKeyRef:
                 name: appmanager-config
                 key: KATHRA_APPMANAGER_RESOURCEMANAGER_URL
+         - name: KATHRA_APPMANAGER_CATALOGMANAGER_URL
+           valueFrom:
+             configMapKeyRef:
+               name: appmanager-config
+               key: KATHRA_APPMANAGER_CATALOGMANAGER_URL
           - name: IMAGE_REGISTRY_HOST
             valueFrom:
               configMapKeyRef:
@@ -84,12 +89,12 @@ objects:
           - name: KEYCLOAK_CLIENT_ID
             valueFrom:
               secretKeyRef:
-                name: kathra-keycloak-secret
+                name: keycloak-secret
                 key: KEYCLOAK_CLIENT_ID
           - name: KEYCLOAK_CLIENT_SECRET
             valueFrom:
               secretKeyRef:
-                name: kathra-keycloak-secret
+                name: keycloak-secret
                 key: KEYCLOAK_CLIENT_SECRET
           resources:
             limits:

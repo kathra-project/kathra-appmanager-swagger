@@ -47,14 +47,14 @@ public class ImplementationServiceListTest extends ImplementationServiceTest {
     @Test
     public void given_nominal_args_when_creating_implementation_then_works() throws Exception {
 
-        //assertThat("The response HTTP Status Code is 201(Created)", underTest.addContainersRepository(repoToCreate).getStatusCode(), is(201));
-        //assertThat("The response informs the resource have been created", underTest.addContainersRepository(repoToCreate).getData(), is(""));
+        //assertThat("The response HTTP Status Code is 201(Created)", underTest.addBinaryRepository(repoToCreate).getStatusCode(), is(201));
+        //assertThat("The response informs the resource have been created", underTest.addBinaryRepository(repoToCreate).getData(), is(""));
     }
 
     @Test
     public void when_getAll_then_works() throws Exception {
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implem2 = generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         Mockito.when(resourceManager.getImplementations()).thenReturn(ImmutableList.of(implem1, implem2));
         List<Implementation> items = underTest.getAll();
@@ -77,10 +77,10 @@ public class ImplementationServiceListTest extends ImplementationServiceTest {
     @Test
     public void given_componentId_when_get_then_works() throws Exception {
 
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA).component(new Component().id("c1"));
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON).component(new Component().id("c1"));
-        Implementation implem3 = generateImplementationExample(Asset.LanguageEnum.JAVA).component(new Component().id("c2"));
-        Implementation implem4 = generateImplementationExample(Asset.LanguageEnum.PYTHON).component(new Component().id("c2"));
+        Implementation implem1 = generateImplementationExample(Implementation.LanguageEnum.JAVA).component(new Component().id("c1"));
+        Implementation implem2 = generateImplementationExample(Implementation.LanguageEnum.PYTHON).component(new Component().id("c1"));
+        Implementation implem3 = generateImplementationExample(Implementation.LanguageEnum.JAVA).component(new Component().id("c2"));
+        Implementation implem4 = generateImplementationExample(Implementation.LanguageEnum.PYTHON).component(new Component().id("c2"));
 
         Mockito.when(resourceManager.getImplementations()).thenReturn(ImmutableList.of(implem1,implem2,implem3,implem4));
         List<Implementation> items = underTest.getComponentImplementations("c1");
@@ -94,8 +94,8 @@ public class ImplementationServiceListTest extends ImplementationServiceTest {
     @Test
     public void when_fill_implementation_with_version_then_works() throws Exception {
 
-        Implementation implem1 = generateImplementationExample(Asset.LanguageEnum.JAVA).id("1");
-        Implementation implem2 = generateImplementationExample(Asset.LanguageEnum.PYTHON).id("2");
+        Implementation implem1 = generateImplementationExample(Implementation.LanguageEnum.JAVA).id("1");
+        Implementation implem2 = generateImplementationExample(Implementation.LanguageEnum.PYTHON).id("2");
 
         ImplementationVersion implementationVersion1 = new ImplementationVersion().implementation(implem1).id("version1");
         ImplementationVersion implementationVersion1b = new ImplementationVersion().implementation(implem1).id("version1b");

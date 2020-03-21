@@ -55,7 +55,7 @@ public class ImplementationServiceDeleteTest extends ImplementationServiceTest {
     }
 
     public Implementation getImplementation() {
-        return generateImplementationExample(Asset.LanguageEnum.JAVA).versions(ImmutableList.of(new ImplementationVersion().id("id_version_impl")));
+        return generateImplementationExample(Implementation.LanguageEnum.JAVA).versions(ImmutableList.of(new ImplementationVersion().id("id_version_impl")));
     }
 
     @Test

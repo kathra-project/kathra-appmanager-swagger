@@ -20,6 +20,7 @@
  */
 package org.kathra.appmanager.libraryapiversion;
 
+import org.apache.commons.lang3.StringUtils;
 import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.pipeline.PipelineService;
@@ -27,14 +28,14 @@ import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.codegen.client.CodegenClient;
+import org.kathra.codegen.model.CodeGenTemplate;
+import org.kathra.codegen.model.CodeGenTemplateArgument;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.LibraryApiVersionsClient;
 import org.kathra.utils.ApiException;
-import org.kathra.utils.Session;
 import org.kathra.utils.KathraException;
 import org.kathra.utils.KathraSessionManager;
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.commons.lang3.StringUtils;
+import org.kathra.utils.Session;
 
 import java.io.File;
 import java.util.List;
@@ -238,29 +239,28 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
         return libraryApiVersion.status(Resource.StatusEnum.UPDATING).apiRepositoryStatus(LibraryApiVersion.ApiRepositoryStatusEnum.UPDATING);
     }
 
+    private CodeGenTemplate getCodeGenTemplate(LibraryApiVersion libraryApiVersion, File apiFile) throws ApiException {
+        final String artifactGroup = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_GROUP_ID);
+        final String artifactName = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_ARTIFACT_NAME);
+        try {
+            final String content = new String ( java.nio.file.Files.readAllBytes( java.nio.file.Paths.get(apiFile.getAbsolutePath()) ) );
+            return new CodeGenTemplate().name("LIBRARY_"+libraryApiVersion.getLibrary().getLanguage().toString()+"_REST_"+libraryApiVersion.getLibrary().getType())
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("NAME").value(artifactName))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("GROUP").value(artifactGroup))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("SWAGGER2_SPEC").value(content))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("VERSION").value(libraryApiVersion.getApiVersion().getVersion()));
+        } catch(Exception e) {
+            throw new ApiException("Unable to read api file");
+        }
+    }
+
     private void generateAndUpdateSrc(LibraryApiVersion libraryApiVersion, File apiFile, Runnable callback) throws ApiException {
         try {
-            final String artifactGroup = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_GROUP_ID);
-            final String artifactName = (String) libraryApiVersion.getApiVersion().getMetadata().get(ApiVersionService.METADATA_API_ARTIFACT_NAME);
-            final File sourceGenerated;
-            switch(libraryApiVersion.getLibrary().getType()) {
-                case MODEL:
-                    sourceGenerated = codegenClient.generateModel(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                case CLIENT:
-                    sourceGenerated = codegenClient.generateClient(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                case INTERFACE:
-                    sourceGenerated = codegenClient.generateInterface(apiFile, libraryApiVersion.getLibrary().getLanguage().toString(), artifactName, artifactGroup, libraryApiVersion.getApiVersion().getVersion());
-                    break;
-                default:
-                    throw new NotImplementedException("Library type "+libraryApiVersion.getLibrary().getType().toString()+" not implemented");
-            }
+            final File sourceGenerated = codegenClient.generateFromTemplate(getCodeGenTemplate(libraryApiVersion, apiFile));
+            
             if (sourceGenerated == null) {
                 throw new IllegalArgumentException("CodeGenClient's File is null");
-            }
-
-            if (!isReady(libraryApiVersion.getLibrary().getSourceRepository())) {
+            } else if (!isReady(libraryApiVersion.getLibrary().getSourceRepository())) {
                 throw new IllegalStateException("SourceRepository '"+libraryApiVersion.getLibrary().getSourceRepository().getId()+"' is not READY");
             }
             try {
@@ -269,8 +269,7 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
                     throw new IllegalStateException("SourceManager doesn't return commit with id");
                 }
             } catch(ApiException e) {
-                // PRECONDITION FAILED EXCEPTION IF THROWS WHEN SOURCE REPOSITORY IS ALREADY UPDATED
-                if (e.getCode() != KathraException.ErrorCode.PRECONDITION_FAILED.getCode()) {
+                if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
                     throw e;
                 }
             }
@@ -291,14 +290,11 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
         LibraryApiVersion libraryApiVersionWithDetails = this.getById(libraryApiVersion.getId()).orElseThrow(() -> new IllegalArgumentException("Unable to find LibraryApiVersion with id "+libraryApiVersion.getId()));
         if (isError(libraryApiVersionWithDetails)) {
             throw new IllegalArgumentException("LibraryApiVersion has status "+libraryApiVersionWithDetails.getStatus());
-        }
-        if (!LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersionWithDetails.getApiRepositoryStatus())) {
+        } else if (!LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersionWithDetails.getApiRepositoryStatus())) {
             throw new IllegalArgumentException("LibraryApiVersion's repository status is not READY");
-        }
-        if (libraryApiVersionWithDetails.getApiVersion() == null) {
+        } else if (libraryApiVersionWithDetails.getApiVersion() == null) {
             throw new IllegalArgumentException("LibraryApiVersion's ApiVersion is null");
-        }
-        if (libraryApiVersionWithDetails.getLibrary() == null) {
+        } else if (libraryApiVersionWithDetails.getLibrary() == null) {
             throw new IllegalArgumentException("LibraryApiVersion's Library is null");
         }
         ApiVersion apiVersionWithDetails = apiVersionService.getById(libraryApiVersion.getApiVersion().getId()).orElseThrow(() -> new IllegalArgumentException("Unable to find ApiVersion with id "+libraryApiVersion.getApiVersion().getId()));
@@ -370,11 +366,10 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
     public void delete(LibraryApiVersion libApiVersion, boolean purge) throws ApiException {
         try {
             LibraryApiVersion libApiVersionToDeleted = resourceManager.getLibraryApiVersion(libApiVersion.getId());
-            if (isDeleted(libApiVersionToDeleted)) {
-                return;
+            if (!isDeleted(libApiVersionToDeleted)) {
+                resourceManager.deleteLibraryApiVersion(libApiVersionToDeleted.getId());
+                libApiVersion.status(Resource.StatusEnum.DELETED);
             }
-            resourceManager.deleteLibraryApiVersion(libApiVersionToDeleted.getId());
-            libApiVersion.status(Resource.StatusEnum.DELETED);
         } catch (ApiException e) {
             manageError(libApiVersion, e);
             throw e;

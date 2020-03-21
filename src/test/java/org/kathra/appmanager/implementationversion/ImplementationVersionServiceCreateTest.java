@@ -46,6 +46,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
@@ -151,12 +152,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
         Mockito.doAnswer(invocationOnMock -> {
             Thread.sleep(1000);
             return Mockito.mock(File.class);
-        }).when(codegenClient).generateImplementation(Mockito.any(),
-                Mockito.eq(ImplementationServiceCreateTest.IMPL_NAME),
-                Mockito.eq(Asset.LanguageEnum.JAVA.toString()),
-                Mockito.eq(ImplementationServiceCreateTest.IMPL_ARTIFACT_NAME),
-                Mockito.eq(ImplementationServiceCreateTest.COMPONENT_ARTIFACT_GROUP_ID),
-                Mockito.eq(IMPL_VERSION_VERSION));
+        }).when(codegenClient).generateFromTemplate(Mockito.argThat(t -> t.getName().equals("SERVER_"+Implementation.LanguageEnum.JAVA.toString()+"_REST")));
     }
 
     private void mockUpdateRepositoryImpl() throws ApiException {
@@ -239,8 +235,8 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
         Mockito.doAnswer(invocationOnMock -> copy(implementationVersionDb)).when(resourceManager).getImplementationVersion(Mockito.eq(IMPL_VERSION_ID));
     }
 
-    private void mockGetFileRepository() throws ApiException {
-        Mockito.doReturn(Mockito.mock(File.class)).when(sourceRepositoryService).getFile(Mockito.argThat(src -> ImplementationServiceCreateTest.API_SRC_REPO_ID.equals(src.getId())), Mockito.eq(ImplementationServiceCreateTest.getApiVersion().getVersion()), Mockito.eq(ApiVersionService.API_FILENAME));
+    private void mockGetFileRepository() throws ApiException, IOException {
+        Mockito.doReturn(File.createTempFile("prefix-", "-suffix")).when(sourceRepositoryService).getFile(Mockito.argThat(src -> ImplementationServiceCreateTest.API_SRC_REPO_ID.equals(src.getId())), Mockito.eq(ImplementationServiceCreateTest.getApiVersion().getVersion()), Mockito.eq(ApiVersionService.API_FILENAME));
     }
 
     @Test
@@ -314,10 +310,15 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
     @Test
     public void given_error_codegen_when_create_then_implVersion_is_error() throws Exception {
 
-        Mockito.doAnswer(invocationOnMock -> {
+        /*Mockito.doAnswer(invocationOnMock -> {
             Thread.sleep(500);
             throw new ApiException("error");
         }).when(codegenClient).generateImplementation(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+*/
+        Mockito.doAnswer(invocationOnMock -> {
+            Thread.sleep(500);
+            throw new ApiException("error");
+        }).when(codegenClient).generateFromTemplate(Mockito.any());
 
         ImplementationVersion implVersion = underTest.create(getImplementation(), ImplementationServiceCreateTest.getApiVersion(), IMPL_VERSION_VERSION, getCallBack());
         assertImplVersionPending(implVersion);
@@ -329,7 +330,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
 
 
     private Implementation getImplementation() {
-        return ImplementationServiceCreateTest.generateImplementationExample(Asset.LanguageEnum.JAVA).component(ImplementationServiceCreateTest.getComponent());
+        return ImplementationServiceCreateTest.generateImplementationExample(Implementation.LanguageEnum.JAVA).component(ImplementationServiceCreateTest.getComponent());
     }
 
     @Test

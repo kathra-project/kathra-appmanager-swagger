@@ -31,12 +31,13 @@ import java.io.StringWriter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 /**
  * @author julien.boubechtoula
  */
-public abstract class AbstractResourceService<X extends Resource> {
+public abstract class AbstractResourceService<X extends Resource> implements Injectable {
 
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected KathraSessionManager kathraSessionManager;
@@ -113,6 +114,6 @@ public abstract class AbstractResourceService<X extends Resource> {
 
 
     public abstract Optional<X> getById(String id) throws ApiException;
-    public abstract List<X> getAll() throws ApiException;
+    public abstract List<X> getAll() throws ApiException, InterruptedException, ExecutionException;
 
 }

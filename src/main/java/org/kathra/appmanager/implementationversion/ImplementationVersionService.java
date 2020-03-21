@@ -29,6 +29,8 @@ import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.*;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.codegen.client.CodegenClient;
+import org.kathra.codegen.model.CodeGenTemplate;
+import org.kathra.codegen.model.CodeGenTemplateArgument;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.ImplementationVersionsClient;
 import org.kathra.utils.ApiException;
@@ -111,7 +113,6 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
     public List<ImplementationVersion> getImplementationVersions(List<Implementation> implementations) throws ApiException {
         if (implementations == null || implementations.isEmpty())
             return new ArrayList<>();
-
         return this.implementationVersionsClient.getImplementationVersions()
                 .stream().filter(implementationVersion -> implementations.stream().anyMatch(implementation -> implementationVersion.getImplementation().getId().equals(implementation.getId()))).collect(Collectors.toList());
     }
@@ -138,7 +139,6 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
             implementationVersion.setApiVersion(apiVersion);
         }
         return implementationVersions;
-
     }
 
 
@@ -194,13 +194,27 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
 
         return implVersion;
     }
+    
+    private CodeGenTemplate getCodeGenTemplate(ImplementationVersion implVersion, File apiFile) throws ApiException {
+        final String artifactGroup = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_GROUP_ID);
+        final String artifactName = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME);
+        try {
+            final String content = new String ( java.nio.file.Files.readAllBytes( java.nio.file.Paths.get(apiFile.getAbsolutePath()) ) );
+            return new CodeGenTemplate().name("SERVER_"+implVersion.getImplementation().getLanguage().toString()+"_REST")
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("NAME").value(artifactName))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("GROUP").value(artifactGroup))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("IMPLEMENTATION_NAME").value( implVersion.getImplementation().getName()))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("SWAGGER2_SPEC").value(content))
+                                        .addArgumentsItem(new CodeGenTemplateArgument().key("VERSION").value(implVersion.getVersion()));
+        } catch(Exception e) {
+            throw new ApiException("Unable to read api file");
+        }
+    }
 
     private void generateAndUpdateSrc(ImplementationVersion implVersion, File apiFile) throws ApiException {
-        String artifactName = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME);
-        String artifactGroup = (String) implVersion.getImplementation().getMetadata().get(ImplementationService.METADATA_ARTIFACT_GROUP_ID);
         SourceRepository sourceRepository = sourceRepositoryService.getById(implVersion.getImplementation().getSourceRepository().getId()).orElseThrow(() -> new IllegalStateException("Unable to find SourceRepository "+implVersion.getImplementation().getSourceRepository().getId()));
         // generate source code
-        File implementationFiles = codegenClient.generateImplementation(apiFile, implVersion.getImplementation().getName(), implVersion.getImplementation().getLanguage().toString(), artifactName, artifactGroup, implVersion.getVersion());
+        File implementationFiles = codegenClient.generateFromTemplate(getCodeGenTemplate(implVersion, apiFile));
         if (implementationFiles == null) {
             throw new IllegalStateException("Implementation's file generated is null or empty");
         }
@@ -211,8 +225,7 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
                 throw new IllegalStateException("Commit is null");
             }
         } catch(ApiException e) {
-            // PRECONDITION FAILED EXCEPTION IF THROWS WHEN SOURCE REPOSITORY IS ALREADY UPDATED
-            if (e.getCode() != KathraException.ErrorCode.PRECONDITION_FAILED.getCode()) {
+            if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
                 throw e;
             }
         }

@@ -25,6 +25,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.kathra.appmanager.apiversion.ApiVersionService;
+import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.component.ComponentServiceTest;
 import org.kathra.appmanager.implementationversion.ImplementationVersionService;
@@ -64,7 +65,7 @@ public class ImplementationServiceTest extends AbstractServiceTest {
     public final static String IMPL_ARTIFACT_NAME = "implementationid";
     public final static String IMPL_ARTIFACT_GROUP_ID = "com.mygroup.subgroup";
 
-    public static Implementation generateImplementationExample(Asset.LanguageEnum languageEnum) {
+    public static Implementation generateImplementationExample(Implementation.LanguageEnum languageEnum) {
         String id = UUID.randomUUID().toString();
         return new Implementation()
                 .id(IMPL_ID)
@@ -99,6 +100,8 @@ public class ImplementationServiceTest extends AbstractServiceTest {
     protected ImplementationsClient resourceManager;
     @Mock
     protected ImplementationVersionService implementationVersionService;
+    @Mock
+    protected CatalogEntryService catalogEntryService;
 
     protected Implementation implementationDb = null;
 
@@ -120,8 +123,9 @@ public class ImplementationServiceTest extends AbstractServiceTest {
         this.resourceManager = Mockito.mock(ImplementationsClient.class);
         this.implementationVersionService = Mockito.mock(ImplementationVersionService.class);
         this.pipelineService = Mockito.mock(PipelineService.class);
+        this.catalogEntryService = Mockito.mock(CatalogEntryService.class);
 
-        underTest = new ImplementationService(this.componentService, this.apiVersionService, this.sourceRepositoryService, this.implementationVersionService, this.resourceManager, this.pipelineService, kathraSessionManager);
+        underTest = new ImplementationService(this.componentService, this.apiVersionService, this.sourceRepositoryService, this.implementationVersionService, this.resourceManager, this.pipelineService, kathraSessionManager, this.catalogEntryService);
         mockNominalBehavior();
     }
 
@@ -142,6 +146,8 @@ public class ImplementationServiceTest extends AbstractServiceTest {
 
     public final static String IMPL_VERSION_ID = "impl-version-id";
 
+    public final static String CATALOG_ENTRY_ID = "impl-version-id";
+
     public final static String COMPONENT_ARTIFACT_NAME = "implementationid";
     public final static String COMPONENT_ARTIFACT_GROUP_ID = "com.mygroup.subgroup";
 
@@ -155,6 +161,12 @@ public class ImplementationServiceTest extends AbstractServiceTest {
         mockCreateImplemVersion();
         mockApiVersion();
         mockComponent();
+        mockCatalogEntry();
+    }
+
+    private void mockCatalogEntry() throws ApiException {
+        CatalogEntry catalogEntry = new CatalogEntry().id(CATALOG_ENTRY_ID).status(Resource.StatusEnum.PENDING);
+        Mockito.when(this.catalogEntryService.create(Mockito.any())).thenReturn(catalogEntry);
     }
 
     protected void mockComponent() throws ApiException {
@@ -198,6 +210,9 @@ public class ImplementationServiceTest extends AbstractServiceTest {
             }
             if (implementationPatch.getPipeline() != null) {
                 implementationDb.pipeline(implementationPatch.getPipeline());
+            }
+            if (implementationPatch.getCatalogEntries() != null) {
+                implementationDb.catalogEntries(implementationPatch.getCatalogEntries());
             }
             Mockito.doReturn(implementationDb).when(resourceManager).getImplementation(IMPL_ID);
             return implementationDb;
@@ -258,7 +273,6 @@ public class ImplementationServiceTest extends AbstractServiceTest {
             return implementationVersion;
         }).when(implementationVersionService).create(Mockito.argThat(impl -> impl.getId().equals(IMPL_ID)), Mockito.argThat(apiVersion -> apiVersion.getId().equals(API_VERSION_ID)), Mockito.eq("1.0.0"), Mockito.any());
     }
-
 
 
     public void waitUntilNotPending(long timeout) throws Exception {

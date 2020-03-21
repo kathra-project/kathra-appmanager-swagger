@@ -113,9 +113,9 @@ public class PipelineServiceAbstractTest extends AbstractServiceTest {
     }
     protected Library getLibrary(){
         return new Library().id(UUID.randomUUID().toString())
-                .name("component-name - " + Asset.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
+                .name("component-name - " + Library.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
                 .component(new Component().id(getComponent().getId()))
-                .language(Asset.LanguageEnum.PYTHON)
+                .language(Library.LanguageEnum.PYTHON)
                 .type(Library.TypeEnum.MODEL)
                 .sourceRepository(new SourceRepository().id(SRC_ID));
     }

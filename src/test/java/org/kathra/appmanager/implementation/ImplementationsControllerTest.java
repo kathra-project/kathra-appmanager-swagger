@@ -82,7 +82,7 @@ public class ImplementationsControllerTest {
 
     @Test
     public void given_existing_id_when_getImplementation_then_works() throws Exception {
-        Implementation implExpected = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation implExpected = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
         Mockito.doReturn(Optional.of(implExpected)).when(implementationService).getById(Mockito.eq(ImplementationServiceTest.IMPL_ID));
         List<ImplementationVersion> implementationVersions = ImmutableList.of(new ImplementationVersion().implementation(implExpected));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(implExpected))).thenReturn(implementationVersions);
@@ -113,7 +113,7 @@ public class ImplementationsControllerTest {
 
     @Test
     public void given_nominal_when_createImplementation_then_works() throws Exception {
-        Implementation expected = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
+        Implementation expected = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
         Mockito.doReturn(expected).when(implementationService).create(Mockito.eq("newimpl"), Mockito.eq(Implementation.LanguageEnum.JAVA), Mockito.argThat(apiV -> apiV.getId().equals("api-version-id")),Mockito.any());
         Implementation impl = underTest.createImplementation(new ImplementationParameters().language("JAVA").name("newimpl").apiVersion(new ApiVersion().id("api-version-id")));
         Assertions.assertEquals(expected, impl);
@@ -122,8 +122,8 @@ public class ImplementationsControllerTest {
     @Test
     public void when_getImplementations_then_return_items() throws Exception {
 
-        Implementation item1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation item2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation item1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation item2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getAll()).thenReturn(ImmutableList.of(item1, item2));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(item1, item2))).thenReturn(Collections.emptyList());
@@ -148,8 +148,8 @@ public class ImplementationsControllerTest {
     @Test
     public void when_getImplementations_then_return_items_with_versions() throws Exception {
 
-        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getAll()).thenReturn(ImmutableList.of(implem1, implem2));
 
@@ -194,8 +194,8 @@ public class ImplementationsControllerTest {
 
     @Test
     public void given_componentId_when_getImplementations_then_return_items_without_versions() throws Exception {
-        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getComponentImplementations("comp1")).thenReturn(ImmutableList.of(implem1, implem2));
         Mockito.when(implementationVersionService.getImplementationVersions(ImmutableList.of(implem1, implem2))).thenReturn(Collections.emptyList());
@@ -214,8 +214,8 @@ public class ImplementationsControllerTest {
     @Test
     public void given_componentId_when_getImplementations_then_return_items_with_versions() throws Exception {
 
-        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.JAVA);
-        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Asset.LanguageEnum.PYTHON);
+        Implementation implem1 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.JAVA);
+        Implementation implem2 = ImplementationServiceTest.generateImplementationExample(Implementation.LanguageEnum.PYTHON);
 
         Mockito.when(implementationService.getComponentImplementations("comp1")).thenReturn(ImmutableList.of(implem1, implem2));
 

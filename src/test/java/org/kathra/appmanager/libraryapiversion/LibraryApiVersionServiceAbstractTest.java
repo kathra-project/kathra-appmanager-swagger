@@ -35,6 +35,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -107,14 +108,15 @@ public class LibraryApiVersionServiceAbstractTest  extends AbstractServiceTest {
                 .status(Resource.StatusEnum.READY);
     }
 
-    public File getApiFile() {
-        return Mockito.mock(File.class);
+    public File getApiFile() throws IOException {
+        File tempFile = File.createTempFile("prefix-", "-suffix");
+        return tempFile;
     }
 
     public Library getLibrary() {
         return new Library().id(LIBRARY_ID)
                 .component(getComponent())
-                .language(Asset.LanguageEnum.JAVA)
+                .language(Library.LanguageEnum.JAVA)
                 .type(Library.TypeEnum.MODEL)
                 .status(Resource.StatusEnum.READY)
                 .sourceRepository(getRepository())
@@ -126,19 +128,19 @@ public class LibraryApiVersionServiceAbstractTest  extends AbstractServiceTest {
         Mockito.doAnswer(invocation -> {
             Thread.sleep(1000);
             return getSrcGenerated();
-        }).when(codegenClient).generateModel(Mockito.any(), Mockito.eq(Library.LanguageEnum.JAVA.toString()), Mockito.eq(ARTIFACT_NAME), Mockito.eq(ARTIFACT_GROUP), Mockito.eq(ARTIFACT_VERSION));
+        }).when(codegenClient).generateFromTemplate(Mockito.argThat(t -> t.getName().equals("LIBRARY_"+Library.LanguageEnum.JAVA.toString()+"_REST_MODEL")));
     }
     public void mockCodeGenGenerateClient() throws ApiException {
         Mockito.doAnswer(invocation -> {
             Thread.sleep(1000);
             return getSrcGenerated();
-        }).when(codegenClient).generateClient(Mockito.any(), Mockito.eq(Library.LanguageEnum.JAVA.toString()), Mockito.eq(ARTIFACT_NAME), Mockito.eq(ARTIFACT_GROUP), Mockito.eq(ARTIFACT_VERSION));
+        }).when(codegenClient).generateFromTemplate(Mockito.argThat(t -> t.getName().equals("LIBRARY_"+Library.LanguageEnum.JAVA.toString()+"_REST_CLIENT")));
     }
     public void mockCodeGenGenerateInterface() throws ApiException {
         Mockito.doAnswer(invocation -> {
             Thread.sleep(1000);
             return getSrcGenerated();
-        }).when(codegenClient).generateInterface(Mockito.any(), Mockito.eq(Library.LanguageEnum.JAVA.toString()), Mockito.eq(ARTIFACT_NAME), Mockito.eq(ARTIFACT_GROUP), Mockito.eq(ARTIFACT_VERSION));
+        }).when(codegenClient).generateFromTemplate(Mockito.argThat(t -> t.getName().equals("LIBRARY_"+Library.LanguageEnum.JAVA.toString()+"_REST_INTERFACE")));
     }
 
     public File getSrcGenerated() {

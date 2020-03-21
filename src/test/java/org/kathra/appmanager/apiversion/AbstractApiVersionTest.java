@@ -64,7 +64,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
     protected ApiVersionService underTest;
     protected String COMPONENT_ID;
     protected String SOURCE_REPOSITORY_API_ID;
-    protected long timeoutMax = 6000;
+    protected long timeoutMax = 7000;
 
     protected final static String API_NAME = "apiversion's name";
     protected final static String API_VERSION = "1.0.0";
@@ -160,7 +160,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
         return component;
     }
 
-    private Library getLibrary(Component component, Asset.LanguageEnum language, Library.TypeEnum type) {
+    private Library getLibrary(Component component, Library.LanguageEnum language, Library.TypeEnum type) {
         Pipeline pipeline = new Pipeline().id(UUID.randomUUID().toString()).status(Resource.StatusEnum.READY);
         SourceRepository sourceRepository = new SourceRepository().id(UUID.randomUUID().toString()).status(Resource.StatusEnum.READY);
         Library library = new Library() .component(component)

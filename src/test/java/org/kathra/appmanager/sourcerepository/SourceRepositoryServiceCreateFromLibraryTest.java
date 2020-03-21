@@ -136,9 +136,9 @@ public class SourceRepositoryServiceCreateFromLibraryTest extends SourceReposito
 
     private Library getLibrary(){
         return new Library().id(UUID.randomUUID().toString())
-                            .name("component-name - " + Asset.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
+                            .name("component-name - " + Library.LanguageEnum.PYTHON+" - " + Library.TypeEnum.MODEL)
                             .component(new Component()  .id(ComponentServiceTest.COMPONENT_ID))
-                            .language(Asset.LanguageEnum.PYTHON)
+                            .language(Library.LanguageEnum.PYTHON)
                             .type(Library.TypeEnum.MODEL);
     }
 
