@@ -103,7 +103,7 @@ public class ApiVersionServiceCreateTest extends AbstractApiVersionTest {
 
     @Test
     public void given_malformated_version_apiFile_when_create_then_throws_IllegalArgumentException() {
-        Mockito.when(openApiParser.getApiVersionFromApiFile(Mockito.any())).thenReturn(getApiVersionFromFile().version("1.1.0-SNAPSHOT"));
+        Mockito.when(openApiParser.getApiVersionFromApiFile(Mockito.any())).thenReturn(getApiVersionFromFile().version("1.2.0-SNAPSHOT"));
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> {
             underTest.create(getComponent(), getApiFile(), getCallBack());
         });
