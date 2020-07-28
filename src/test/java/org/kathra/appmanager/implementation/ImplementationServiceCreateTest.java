@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.implementation;
@@ -165,7 +164,7 @@ public class ImplementationServiceCreateTest extends ImplementationServiceTest {
     @Test
     public void given_occurred_exception_pipelineService_when_create_and_wait_until_ready_then_implementation_is_error() throws Exception {
 
-        Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(pipelineService).create(Mockito.eq(IMPL_NAME), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocationOnMock -> {Thread.sleep(500); throw new ApiException("error");}).when(pipelineService).create(Mockito.eq(IMPL_NAME), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyMap());
 
         Implementation implemPending = underTest.create(IMPL_NAME, Implementation.LanguageEnum.JAVA, getApiVersion(),null);
 

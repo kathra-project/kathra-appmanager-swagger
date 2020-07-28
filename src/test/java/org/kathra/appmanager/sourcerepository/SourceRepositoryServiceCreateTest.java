@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,13 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.sourcerepository;
 
 import com.google.common.collect.ImmutableList;
+import org.kathra.appmanager.component.ComponentServiceTest;
 import org.kathra.core.model.SourceRepository;
 import org.kathra.utils.ApiException;
 import org.junit.jupiter.api.Assertions;
@@ -89,7 +89,7 @@ public class SourceRepositoryServiceCreateTest extends SourceRepositoryServiceAb
         sourceRepositoryDb = getSourceRepositoryForDb();
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, NAME, REPOSITORY_PATH);
         SourceRepository sourceRepositoryWithUrl = getSourceRepositoryFromSourceManager(sourceRepositoryDb);
-        mockCreateRepositoryIntoSourceManager(deployKey, sourceRepositoryWithUrl, 500);
+        mockCreateRepositoryIntoSourceManager(ImmutableList.of(ComponentServiceTest.GROUP_ID), sourceRepositoryWithUrl, 500);
         mockPatchResourceManager(sourceRepositoryDb);
 
         SourceRepository sourceRepositoryPending = underTest.create(NAME, REPOSITORY_PATH, deployKey, callback);
@@ -111,7 +111,7 @@ public class SourceRepositoryServiceCreateTest extends SourceRepositoryServiceAb
         sourceRepositoryDb = getSourceRepositoryForDb();
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, NAME, REPOSITORY_PATH);
         SourceRepository sourceRepositoryWithUrl = getSourceRepositoryFromSourceManager(sourceRepositoryDb);
-        mockCreateRepositoryIntoSourceManager(deployKey, sourceRepositoryWithUrl, 500);
+        mockCreateRepositoryIntoSourceManager(ImmutableList.of(ComponentServiceTest.GROUP_ID), sourceRepositoryWithUrl, 500);
         mockPatchResourceManager(sourceRepositoryDb);
 
         SourceRepository sourceRepositoryPending = underTest.create(NAME, REPOSITORY_PATH, deployKey, callback);
@@ -137,14 +137,14 @@ public class SourceRepositoryServiceCreateTest extends SourceRepositoryServiceAb
 
         sourceRepositoryDb = getSourceRepositoryForDb();
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, NAME, REPOSITORY_PATH);
-        mockCreateRepositoryIntoSourceManagerWithError(deployKey, new ApiException("Unable to create repository"), 500);
+        mockCreateRepositoryIntoSourceManagerWithError(ImmutableList.of(ComponentServiceTest.GROUP_ID), new ApiException("Unable to create repository"), 500);
         mockPatchResourceManager(sourceRepositoryDb);
 
         SourceRepository sourceRepositoryPending = underTest.create(NAME, REPOSITORY_PATH, deployKey, callback);
 
         assertPendingSourceRepository(sourceRepositoryDb, sourceRepositoryPending);
 
-        waitUntilSrcRepositoryIsNotPending(1000);
+        waitUntilSrcRepositoryIsNotPending(10000);
 
         sourceRepositoryIsError(sourceRepositoryDb.getId());
         super.callbackIsCalled(true);
@@ -159,7 +159,7 @@ public class SourceRepositoryServiceCreateTest extends SourceRepositoryServiceAb
 
         SourceRepository sourceRepositoryWithUrl = getSourceRepositoryFromSourceManager(sourceRepositoryDb);
 
-        mockCreateRepositoryIntoSourceManager(deployKey, sourceRepositoryWithUrl, 500);
+        mockCreateRepositoryIntoSourceManager(ImmutableList.of(ComponentServiceTest.GROUP_ID), sourceRepositoryWithUrl, 500);
         mockPatchResourceManagerWithError(new ApiException("Unable to patch resource"), sourceRepositoryDb);
 
         SourceRepository sourceRepositoryPending = underTest.create(NAME, REPOSITORY_PATH, deployKey, callback);

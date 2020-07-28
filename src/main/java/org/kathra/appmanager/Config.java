@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 
@@ -39,6 +38,9 @@ public class Config extends ConfigManager {
 
     private String imageRegistryHost;
     private boolean deleteZipFile;
+
+    private String userLogin;
+    private String userPassword;
 
     public Config() {
         codegenUrlHelm = getProperty("KATHRA_APPMANAGER_CODEGEN_HELM_URL");
@@ -75,7 +77,17 @@ public class Config extends ConfigManager {
         imageRegistryHost = getProperty("IMAGE_REGISTRY_HOST");
         webHookPipelineUrl = getProperty("KATHRA_PIPELINE_WEBHOOK_URL");
 
+        userLogin = getProperty("USERNAME");
+        userPassword = getProperty("PASSWORD");
+
         deleteZipFile = Boolean.valueOf(getProperty("KATHRA_APPMANAGER_DELETE_ZIP_FILE", "true"));
+    }
+
+    public String getUserLogin() {
+        return userLogin;
+    }
+    public String getUserPassword() {
+        return userPassword;
     }
 
     public String getCodegenUrl() {

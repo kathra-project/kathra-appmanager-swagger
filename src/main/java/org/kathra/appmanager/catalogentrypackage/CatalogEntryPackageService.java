@@ -1,5 +1,27 @@
+/*
+ * Copyright (c) 2020. The Kathra Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Contributors:
+ *    IRT SystemX (https://www.kathra.org/)
+ *
+ */
+
 package org.kathra.appmanager.catalogentrypackage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
@@ -8,6 +30,7 @@ import org.kathra.appmanager.Config;
 import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.codegen.CodeGenProxyService;
+import org.kathra.appmanager.group.GroupService;
 import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.service.AbstractResourceService;
 import org.kathra.appmanager.service.ServiceInjection;
@@ -20,6 +43,7 @@ import org.kathra.resourcemanager.client.CatalogEntryPackagesClient;
 import org.kathra.utils.*;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
@@ -29,6 +53,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
     private SourceRepositoryService sourceRepositoryService;
     private BinaryRepositoryService binaryRepositoryService;
+    private GroupService groupService;
     private PipelineService pipelineService;
     private CodeGenProxyService codeGenProxyService;
     private CatalogEntryPackagesClient resourceManager;
@@ -44,12 +69,15 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     public static final String METADATA_DEPLOY_KEY = "deployKey";
     public static final String METADATA_GROUP_ID = "groupId";
     public static final String METADATA_GROUP_PATH = "groupPath";
+    public static final String METADATA_CODEGEN_TEMPLATE = "codeGenTemplate";
+    public static final String METADATA_CODEGEN_PROVIDER = "codeGenTemplate";
+    public static final String METADATA_PIPELINE_TEMPLATE = "pipelineTemplate";
 
     public CatalogEntryPackageService() {
 
     }
 
-    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService, ReadCatalogEntriesClient
+    public CatalogEntryPackageService(CatalogEntryPackagesClient resourceManager, KathraSessionManager kathraSessionManager, GroupService groupService, SourceRepositoryService sourceRepositoryService, BinaryRepositoryService binaryRepositoryService, PipelineService pipelineService, CodeGenProxyService codeGenProxyService, ReadCatalogEntriesClient
             catalogManager, CatalogEntryService catalogEntryService, Config config) {
         this.resourceManager = resourceManager;
         super.kathraSessionManager = kathraSessionManager;
@@ -59,6 +87,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         this.codeGenProxyService = codeGenProxyService;
         this.catalogManager = catalogManager;
         this.catalogEntryService = catalogEntryService;
+        this.groupService = groupService;
         this.config = config;
         this.catalogPackageHelm = new CatalogPackageHelm(config, binaryRepositoryService);
         this.catalogEntryUtils = new CatalogEntryUtils(kathraSessionManager, binaryRepositoryService, catalogEntryService, this, null);
@@ -73,6 +102,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         this.sourceRepositoryService = service.getService(SourceRepositoryService.class);
         this.binaryRepositoryService = service.getService(BinaryRepositoryService.class);
         this.catalogEntryService = service.getService(CatalogEntryService.class);
+        this.groupService = service.getService(GroupService.class);
         this.catalogManager = new ReadCatalogEntriesClient(service.getConfig().getCatalogManagerUrl(), service.getSessionManager());
         this.catalogPackageHelm = new CatalogPackageHelm(config, binaryRepositoryService);
         this.catalogEntryUtils = new CatalogEntryUtils(kathraSessionManager, binaryRepositoryService, catalogEntryService, this, null);
@@ -127,8 +157,8 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
         List<CatalogEntryPackage> missingFromCatalogManager = allEntriesPackagesFromResourceManager .parallelStream()
                                                                                             .filter(entry -> allPackagesEntries.parallelStream()
-                                                                                                    .map(CatalogEntryPackage::getProviderId)
-                                                                                                    .noneMatch(providerId -> providerId.equals(entry.getProviderId())))
+                                                                                            .map(CatalogEntryPackage::getProviderId)
+                                                                                            .noneMatch(providerId -> providerId.equals(entry.getProviderId())))
                                                                                             .collect(Collectors.toList());
 
         allPackagesEntries.addAll(missingFromCatalogManager);
@@ -172,25 +202,33 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
 
     private CatalogEntryPackage generate(CatalogEntry catalogEntry, CatalogEntryPackage.PackageTypeEnum type, Group group, Consumer<CatalogEntryPackage> callback, Pair<CodegenClient, CodeGenTemplate> templateWithClient, Pipeline.TemplateEnum pipelineTemplate, BinaryRepository binaryRepository) throws ApiException {
         File generatedSource = templateWithClient.getKey().generateFromTemplate(templateWithClient.getValue());
-        CatalogEntryPackage catalogEntryPackage = new CatalogEntryPackage().name(catalogEntry.getName() + "-" + type.getValue())
-                .putMetadataItem(METADATA_DEPLOY_KEY, group.getId())
-                .putMetadataItem(METADATA_GROUP_ID, group.getId())
-                .putMetadataItem(METADATA_GROUP_PATH, group.getPath())
-                .packageType(type)
-                .catalogEntry(catalogEntry)
-                .binaryRepository(binaryRepository);
-        final CatalogEntryPackage catalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
         try {
-            if (StringUtils.isEmpty(catalogEntryPackageAdded.getId())) {
-                throw new IllegalStateException("CatalogEntry id should be defined");
-            }
-        } catch (Exception e) {
-            manageError(catalogEntryPackageAdded, e);
-            callback.accept(catalogEntryPackageAdded);
-        }
+            CatalogEntryPackage catalogEntryPackage = new CatalogEntryPackage().name(catalogEntry.getName() + "-" + type.getValue())
+                    .putMetadataItem(METADATA_DEPLOY_KEY, group.getId())
+                    .putMetadataItem(METADATA_GROUP_ID, group.getId())
+                    .putMetadataItem(METADATA_GROUP_PATH, group.getPath())
+                    .putMetadataItem(METADATA_CODEGEN_TEMPLATE, new ObjectMapper().writeValueAsString(templateWithClient.getValue()))
+                    .putMetadataItem(METADATA_CODEGEN_PROVIDER, this.codeGenProxyService.getProviders().entrySet().stream().filter(entry -> entry.getValue().equals(templateWithClient.getRight())).map(Map.Entry::getKey))
+                    .putMetadataItem(METADATA_PIPELINE_TEMPLATE, pipelineTemplate)
+                    .packageType(type)
+                    .catalogEntry(catalogEntry)
+                    .binaryRepository(binaryRepository);
 
-        initSrcRepoAndPipeline(catalogEntryPackageAdded, generatedSource, callback, pipelineTemplate, group);
-        return catalogEntryPackageAdded;
+            final CatalogEntryPackage catalogEntryPackageAdded = resourceManager.addCatalogEntryPackage(catalogEntryPackage);
+            try {
+                if (StringUtils.isEmpty(catalogEntryPackageAdded.getId())) {
+                    throw new IllegalStateException("CatalogEntry id should be defined");
+                }
+            } catch (Exception e) {
+                manageError(catalogEntryPackageAdded, e);
+                callback.accept(catalogEntryPackageAdded);
+            }
+
+            initSrcRepoAndPipeline(catalogEntryPackageAdded, generatedSource, callback, pipelineTemplate, group);
+            return catalogEntryPackageAdded;
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void initSrcRepoAndPipeline(final CatalogEntryPackage catalogEntryPackage, File generatedSource, Consumer<CatalogEntryPackage> callback, Pipeline.TemplateEnum pipelineTemplate, Group group) {
@@ -247,7 +285,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         Map<String, Object> extra = catalogPackageHelm.getSettingsForPipeline(catalogEntryPackage.getBinaryRepository());
         Optional<SourceRepository> sourceRepository = sourceRepositoryService.getById(catalogEntryPackage.getSourceRepository().getId());
         String deployKey = (String) catalogEntryPackage.getMetadata().get(METADATA_DEPLOY_KEY);
-        String pathPipeline = group.getPath() + "/components/packages/" + catalogEntryPackage.getName();
+        String pathPipeline = group.getPath() + "/packages/" + catalogEntryPackage.getName();
         Pipeline pipeline = pipelineService.create(catalogEntryPackage.getName(), pathPipeline, sourceRepository.get(), pipelineTemplate, deployKey, callback, extra);
         catalogEntryPackage.pipeline(pipeline);
         this.patch(new CatalogEntryPackage().id(catalogEntryPackage.getId()).pipeline(pipeline));
@@ -261,7 +299,8 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     }
 
     public Build build(CatalogEntryPackage catalogEntryPackage, String branch, Map<String, String> extraArgs, Consumer<CatalogEntryPackage> onSuccess) throws ApiException {
-        Build build = pipelineService.build(catalogEntryPackage.getPipeline(), branch, extraArgs, () -> onBuildDone(catalogEntryPackage, onSuccess));
+        Pipeline pipeline = pipelineService.getById(catalogEntryPackage.getPipeline().getId()).get();
+        Build build = pipelineService.build(pipeline, branch, extraArgs, () -> onBuildDone(catalogEntryPackage, onSuccess));
         patch(new CatalogEntryPackage().id(catalogEntryPackage.getId()).putMetadataItem("LATEST_BUILD_ID", build.getBuildNumber()));
         return build;
     }
@@ -272,10 +311,13 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
             Optional<Pipeline> pipeline = pipelineService.getById(catalogEntryPackageWithDetails.getPipeline().getId());
             String buildId = (String) catalogEntryPackageWithDetails.getMetadata().get("LATEST_BUILD_ID");
             Build latestBuild = pipelineService.getBuild(pipeline.get(), buildId);
-            if (!latestBuild.getStatus().equals(Build.StatusEnum.SUCCESS)) {
-                throw new IllegalStateException("Job "+buildId+" of pipeline "+pipeline.get().getPath()+ " have failed.");
+            switch(latestBuild.getStatus()) {
+                case SUCCESS:
+                    updateStatus(catalogEntryPackage, Resource.StatusEnum.READY);
+                    break;
+                case FAILED:
+                    throw new IllegalStateException("Job "+buildId+" of pipeline "+pipeline.get().getPath()+ " have failed.");
             }
-            updateStatus(catalogEntryPackage, Resource.StatusEnum.READY);
         } catch (Exception e) {
             super.manageError(catalogEntryPackage, e);
         } finally {
@@ -338,5 +380,82 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
         ConcurrentHashMap<String,BinaryRepository> binaryRepositories = new ConcurrentHashMap();
         ConcurrentHashMap<String,CatalogEntry> catalogEntries = new ConcurrentHashMap();
         return this.catalogEntryUtils.enrichWithResourceManager(entry.providerId(providerId), allEntriesFromResourceManager, binaryRepositories, catalogEntries);
+    }
+
+    public void tryToReconcile(CatalogEntryPackage packageEntryPackage) throws Exception {
+
+        if (StringUtils.isEmpty(packageEntryPackage.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (packageEntryPackage.getCatalogEntry() == null) {
+            throw new IllegalStateException("Catalog entry is null");
+        }
+        if (packageEntryPackage.getPackageType() == null) {
+            throw new IllegalStateException("Package type is null");
+        }
+        if (packageEntryPackage.getBinaryRepository() == null) {
+            throw new IllegalStateException("BinaryRepository is null");
+        }
+        if (isReady(packageEntryPackage) || isPending(packageEntryPackage) || isDeleted(packageEntryPackage)) {
+            return;
+        }
+
+        Group group = this.groupService.getById((String) packageEntryPackage.getMetadata().get(METADATA_GROUP_ID)).orElseThrow(() -> new IllegalStateException("Group not found"));
+
+        // CHECK REPO
+        Optional<SourceRepository> sourceRepository = Optional.empty();
+        if (packageEntryPackage.getSourceRepository() != null && packageEntryPackage.getSourceRepository().getId() != null) {
+            sourceRepository = sourceRepositoryService.getById(packageEntryPackage.getSourceRepository().getId());
+        }
+        Exception inconsistency = null;
+        if (sourceRepository.isEmpty()) {
+            Runnable pushSource= () -> {
+                try {
+                    File generatedSource = this.codeGenProxyService.getProviders().get(packageEntryPackage.getMetadata().get(METADATA_CODEGEN_PROVIDER)).generateFromTemplate(new ObjectMapper().readValue((String) packageEntryPackage.getMetadata().get(METADATA_CODEGEN_TEMPLATE), CodeGenTemplate.class));
+                    sourceRepositoryService.commitArchiveAndTag(packageEntryPackage.getSourceRepository(), DEFAULT_BRANCH, generatedSource, null, FIRST_VERSION);
+                } catch (ApiException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            };
+            initSourceRepository(packageEntryPackage, group, pushSource);
+            throw new IllegalStateException("Source repository missing");
+        } else if (!sourceRepositoryService.isReady(sourceRepository.get())) {
+            inconsistency = new IllegalStateException("Library source repository '"+sourceRepository.get().getId()+"' not ready");
+        }
+
+        // CHECK PIPELINE
+        Optional<Pipeline> pipeline = Optional.empty();
+        if (packageEntryPackage.getPipeline() != null && packageEntryPackage.getPipeline().getId() != null) {
+            pipeline = pipelineService.getById(packageEntryPackage.getPipeline().getId());
+        }
+        if (pipeline.isEmpty() && sourceRepository.isPresent()) {
+            inconsistency = new IllegalStateException("Library pipeline missing");
+            initPipeline(packageEntryPackage, group, Pipeline.TemplateEnum.valueOf((String) packageEntryPackage.getMetadata().get(METADATA_PIPELINE_TEMPLATE)), null);
+
+        } else if (!pipelineService.isReady(pipeline.get())) {
+            inconsistency = new IllegalStateException("Library pipeline '"+pipeline.get().getId()+"' not ready");
+        }
+
+
+        if (inconsistency != null) {
+            throw inconsistency;
+        }
+
+        // CHECK PIPELINE BUILD
+        List<Build> build = pipelineService.getBuildsByBranch(pipeline.get(), DEFAULT_BRANCH);
+        Optional<Build> lastBuild = build.stream().sorted(Comparator.comparingLong(Build::getCreationDate).reversed()).findFirst();
+        if (lastBuild.isPresent()) {
+            switch (lastBuild.get().getStatus()) {
+                case SUCCESS:
+                    updateStatus(packageEntryPackage, Resource.StatusEnum.READY);
+                case FAILED:
+                    build(packageEntryPackage, DEFAULT_BRANCH, ImmutableMap.of(), null);
+                    break;
+            }
+        } else {
+            build(packageEntryPackage, DEFAULT_BRANCH, ImmutableMap.of(), null);
+        }
     }
 }

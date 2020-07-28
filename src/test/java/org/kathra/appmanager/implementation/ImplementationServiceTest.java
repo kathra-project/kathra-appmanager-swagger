@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,24 +14,27 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.implementation;
 
+import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.kathra.appmanager.apiversion.ApiVersionService;
+import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.component.ComponentServiceTest;
+import org.kathra.appmanager.group.GroupService;
 import org.kathra.appmanager.implementationversion.ImplementationVersionService;
 import org.kathra.appmanager.pipeline.PipelineService;
 import org.kathra.appmanager.pipeline.PipelineServiceAbstractTest;
 import org.kathra.appmanager.service.AbstractServiceTest;
+import org.kathra.appmanager.service.GroupsService;
 import org.kathra.appmanager.sourcerepository.SourceRepositoryService;
 import org.kathra.core.model.*;
 import org.kathra.resourcemanager.client.ImplementationsClient;
@@ -64,6 +67,7 @@ public class ImplementationServiceTest extends AbstractServiceTest {
     public final static String IMPL_NAME = "implementation-name";
     public final static String IMPL_ARTIFACT_NAME = "implementationid";
     public final static String IMPL_ARTIFACT_GROUP_ID = "com.mygroup.subgroup";
+    public final static String DEFAULT_DOCKER_REGISTRY = "registry.org";
 
     public static Implementation generateImplementationExample(Implementation.LanguageEnum languageEnum) {
         String id = UUID.randomUUID().toString();
@@ -102,6 +106,10 @@ public class ImplementationServiceTest extends AbstractServiceTest {
     protected ImplementationVersionService implementationVersionService;
     @Mock
     protected CatalogEntryService catalogEntryService;
+    @Mock
+    protected BinaryRepositoryService binaryRepositoryService;
+    @Mock
+    protected GroupService groupService;
 
     protected Implementation implementationDb = null;
 
@@ -124,8 +132,10 @@ public class ImplementationServiceTest extends AbstractServiceTest {
         this.implementationVersionService = Mockito.mock(ImplementationVersionService.class);
         this.pipelineService = Mockito.mock(PipelineService.class);
         this.catalogEntryService = Mockito.mock(CatalogEntryService.class);
+        this.groupService = Mockito.mock(GroupService.class);
+        this.binaryRepositoryService = Mockito.mock(BinaryRepositoryService.class);
 
-        underTest = new ImplementationService(this.componentService, this.apiVersionService, this.sourceRepositoryService, this.implementationVersionService, this.resourceManager, this.pipelineService, kathraSessionManager, this.catalogEntryService);
+        underTest = new ImplementationService(this.componentService, this.apiVersionService, this.sourceRepositoryService, this.implementationVersionService, this.resourceManager, this.pipelineService, kathraSessionManager, this.catalogEntryService, this.binaryRepositoryService, this.groupService, DEFAULT_DOCKER_REGISTRY);
         mockNominalBehavior();
     }
 
@@ -162,6 +172,8 @@ public class ImplementationServiceTest extends AbstractServiceTest {
         mockApiVersion();
         mockComponent();
         mockCatalogEntry();
+        mockGroup();
+        mockBinaryRepository();
     }
 
     private void mockCatalogEntry() throws ApiException {
@@ -171,6 +183,14 @@ public class ImplementationServiceTest extends AbstractServiceTest {
 
     protected void mockComponent() throws ApiException {
         Mockito.doReturn(Optional.of(getComponent())).when(componentService).getById(Mockito.eq(COMPONENT_ID));
+    }
+
+    protected void mockGroup() throws ApiException {
+        Mockito.doReturn(Optional.of(getGroup())).when(groupService).getById(Mockito.eq(GROUP_ID));
+    }
+
+    protected void mockBinaryRepository() {
+        Mockito.doReturn(ImmutableList.of(getBinaryRepository())).when(binaryRepositoryService).getBinaryRepositoryFromGroupAndType(Mockito.argThat(group -> group.getId().equals(GROUP_ID)), Mockito.eq(BinaryRepository.TypeEnum.DOCKER_IMAGE));
     }
 
     protected void mockApiVersion() throws ApiException {
@@ -251,7 +271,7 @@ public class ImplementationServiceTest extends AbstractServiceTest {
             });
             Mockito.doReturn(Optional.of(pipeline)).when(pipelineService).getById(PIPELINE_ID);
             return pipeline;
-        }).when(pipelineService).create(Mockito.eq(IMPL_NAME), Mockito.eq(IMPLEMENTATION_PATH_EXPECTED), Mockito.argThat(src -> src.getId().equals(SRC_REPO_ID)), Mockito.eq(JAVA_SERVICE), Mockito.eq(GROUP_ID), Mockito.any());
+        }).when(pipelineService).create(Mockito.eq(IMPL_NAME), Mockito.eq(IMPLEMENTATION_PATH_EXPECTED), Mockito.argThat(src -> src.getId().equals(SRC_REPO_ID)), Mockito.eq(JAVA_SERVICE), Mockito.eq(GROUP_ID), Mockito.any(), Mockito.anyMap());
     }
 
     protected void mockCreateImplemVersion() throws ApiException {
@@ -306,5 +326,13 @@ public class ImplementationServiceTest extends AbstractServiceTest {
                 .putMetadataItem(ComponentService.METADATA_GROUP_ID, GROUP_ID)
                 .putMetadataItem(ComponentService.METADATA_API_ARTIFACT_NAME, COMPONENT_ARTIFACT_NAME)
                 .putMetadataItem(ComponentService.METADATA_API_GROUP_ID, COMPONENT_ARTIFACT_GROUP_ID);
+    }
+
+    private static Group getGroup() {
+        return new Group().id(GROUP_ID);
+    }
+
+    private static BinaryRepository getBinaryRepository(){
+        return new BinaryRepository();
     }
 }

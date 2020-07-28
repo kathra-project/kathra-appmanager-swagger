@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.apiversion;
@@ -90,17 +89,13 @@ public class ApiVersionsControllerTest {
     @Test
     public void given_apiVersionId_when_getApiFile_then_works() throws Exception {
 
-        SourceRepository sourceRepository1 = new SourceRepository().id("s1");
-        Component component1 = new Component().id("c1").name("new component").putMetadataItem("groupPath", "group name").apiRepository(sourceRepository1);
-        ApiVersion api1 = new ApiVersion().id("api1").name("api 1").component(component1).version("1.0.0-RC-SNAPSHOT");
+        ApiVersion api1 = new ApiVersion().id("api1");
         File file = Mockito.mock(File.class);
 
-        Mockito.when(apiVersionService.getById("1")).thenReturn(Optional.of(api1));
-        Mockito.when(componentService.getById("c1")).thenReturn(Optional.of(component1));
-        Mockito.when(sourceRepositoryService.getById("s1")).thenReturn(Optional.of(sourceRepository1));
-        Mockito.when(sourceRepositoryService.getFile(sourceRepository1,api1.getVersion(),"swagger.yaml")).thenReturn(file);
+        Mockito.when(apiVersionService.getFile(api1)).thenReturn(file);
+        Mockito.when(apiVersionService.getById("api1")).thenReturn(Optional.of(api1));
 
-        FileDataSource result = underTest.getApiFile("1");
+        FileDataSource result = underTest.getApiFile("api1");
 
         Assertions.assertEquals(file,result.getFile());
     }

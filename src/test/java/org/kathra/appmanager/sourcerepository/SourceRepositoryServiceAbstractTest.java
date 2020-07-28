@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.sourcerepository;
@@ -23,6 +22,7 @@ package org.kathra.appmanager.sourcerepository;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.BeforeEach;
 import org.kathra.appmanager.component.ComponentService;
+import org.kathra.appmanager.component.ComponentServiceTest;
 import org.kathra.appmanager.library.LibraryService;
 import org.kathra.appmanager.service.AbstractServiceTest;
 import org.kathra.core.model.Resource;
@@ -49,7 +49,7 @@ public class SourceRepositoryServiceAbstractTest extends AbstractServiceTest {
     public static final List<String> BRANCHES = ImmutableList.of("master", "dev");
     public static final String NAME = "repository name";
     public static final String REPOSITORY_PATH = "repository name";
-    public static final String DEPLOY_KEY = "D35QF465ZKOJ UQHXUEZU";
+    public static final String DEPLOY_KEY = ComponentServiceTest.GROUP_ID;
     public static final String[] deployKey = { DEPLOY_KEY };
 
     Logger logger = LoggerFactory.getLogger(SourceRepositoryServiceAbstractTest.class);
@@ -131,20 +131,20 @@ public class SourceRepositoryServiceAbstractTest extends AbstractServiceTest {
         Assertions.assertEquals(Resource.StatusEnum.PENDING, sourceRepositoryPending.getStatus());
     }
 
-    protected void mockCreateRepositoryIntoSourceManagerWithError(String[] deployKey, Exception exception, int creationDuration) throws ApiException {
+    protected void mockCreateRepositoryIntoSourceManagerWithError(List<String> deployKey, Exception exception, int creationDuration) throws ApiException {
         Mockito.doAnswer(invocationOnMock -> {
             Thread.sleep(creationDuration);
             throw exception;
         }).when(sourceManager).createSourceRepository(  Mockito.argThat(src -> src.getPath().equals(REPOSITORY_PATH)),
-                Mockito.eq(Arrays.asList(deployKey)));
+                Mockito.eq(deployKey));
     }
 
-    protected void mockCreateRepositoryIntoSourceManager(String[] deployKey, SourceRepository sourceRepositoryWithUrl, int creationDuration) throws ApiException {
+    protected void mockCreateRepositoryIntoSourceManager(List<String> deployKey, SourceRepository sourceRepositoryWithUrl, int creationDuration) throws ApiException {
         Mockito.doAnswer(invocationOnMock -> {
             Thread.sleep(creationDuration);
             return sourceRepositoryWithUrl;
         }).when(sourceManager).createSourceRepository(  Mockito.argThat(src -> src.getPath().equals(REPOSITORY_PATH)),
-                                                        Mockito.eq(Arrays.asList(deployKey)));
+                                                        Mockito.eq(deployKey));
     }
 
     protected void mockCreateAndGetFromResourceManager(SourceRepository sourceRepositoryDb, String nameExpected, String pathExcepted) throws ApiException {

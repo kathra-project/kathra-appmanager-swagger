@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.component;
@@ -88,8 +87,8 @@ public class ComponentServiceTest {
 
     public static String COMPONENT_ID = "component-id";
     private static String COMPONENT_NAME = "component-name";
-    private static String GROUP_PATH = "group-path";
-    private static String GROUP_ID = "group-identifier";
+    public static String GROUP_PATH = "group-path";
+    public static String GROUP_ID = "group-identifier";
     private static String REPOSITORY_ID = "repository-api-id";
     private static final String API_REPOSITORY_PATH = GROUP_PATH+"/components/"+COMPONENT_NAME+"/api";
 
