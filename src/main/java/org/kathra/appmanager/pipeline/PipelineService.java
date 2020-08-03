@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.pipeline;
@@ -29,6 +28,7 @@ import org.kathra.core.model.*;
 import org.kathra.pipelinemanager.client.PipelineManagerClient;
 import org.kathra.resourcemanager.client.PipelinesClient;
 import org.kathra.utils.ApiException;
+import org.kathra.utils.KathraException;
 import org.kathra.utils.Session;
 import org.kathra.utils.KathraSessionManager;
 import org.apache.commons.lang3.NotImplementedException;
@@ -187,6 +187,7 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
     public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback) throws ApiException {
         return create(name, path, sourceRepository, template, credentialId, callback, null);
     }
+
     public Pipeline create(String name, String path, SourceRepository sourceRepository, Pipeline.TemplateEnum template, String credentialId, Runnable callback, Map<String, Object> extras) throws ApiException {
 
 
@@ -256,6 +257,41 @@ public class PipelineService extends AbstractResourceService<Pipeline> {
         }
 
         return pipeline;
+    }
+
+    public void tryToReconcile(Pipeline pipeline) throws ApiException {
+
+        if (StringUtils.isEmpty(pipeline.getPath())) {
+            throw new IllegalStateException("Path is null or empty");
+        } else if (StringUtils.isEmpty(pipeline.getName())) {
+            throw new IllegalStateException("Name is null or empty");
+        } else if (pipeline.getTemplate() == null) {
+            throw new IllegalStateException("Template is null");
+        }
+
+        if (isReady(pipeline) || isPending(pipeline) || isDeleted(pipeline)) {
+            return;
+        }
+
+        if (pipeline.getSourceRepository() == null) {
+            throw new IllegalStateException("Source repository is null or empty");
+        }
+        if (!sourceRepositoryService.isReady(sourceRepositoryService.getById(pipeline.getSourceRepository().getId()).get())) {
+            throw new IllegalStateException("Source repository is not ready");
+        }
+
+        Pipeline patch = new Pipeline();
+        try {
+            Pipeline pipelineUpdatedWithProvider = pipelineManagerClient.createPipeline(pipeline.sourceRepository(sourceRepositoryService.getById(pipeline.getSourceRepository().getId()).get()));
+            patch.provider(pipelineUpdatedWithProvider.getProvider())
+                 .providerId(pipelineUpdatedWithProvider.getProviderId());
+        } catch (ApiException e) {
+            if (e.getCode() != KathraException.ErrorCode.NOT_MODIFIED.getCode()) {
+                throw e;
+            }
+        }
+        patch.status(Resource.StatusEnum.READY);
+        resourceManager.updatePipelineAttributes(pipeline.getId(), patch);
     }
 
     public Pipeline createLibraryPipeline(Library library, Runnable callback) throws ApiException {

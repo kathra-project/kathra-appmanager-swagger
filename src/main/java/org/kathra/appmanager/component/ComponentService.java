@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.component;
@@ -349,4 +348,44 @@ public class ComponentService extends AbstractResourceService<Component> {
         return componentsClient.getComponents();
     }
 
+    public void tryToReconcile(Component component) throws Exception {
+        if (StringUtils.isEmpty(component.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (isReady(component) || isPending(component) || isDeleted(component)) {
+            return;
+        }
+
+        // INIT API REPO
+        Optional<SourceRepository> apiOpt = Optional.empty();
+        if (component.getApiRepository() != null && component.getApiRepository().getId() != null) {
+            apiOpt = sourceRepositoryService.getById(component.getApiRepository().getId());
+        }
+        Exception inconsistency = null;
+        if (apiOpt.isEmpty()) {
+            inconsistency = new IllegalStateException("API repository missing");
+            createSourceRepositoryApi(component, () -> {});
+        } else if (!sourceRepositoryService.isReady(apiOpt.get())) {
+            inconsistency = new IllegalStateException("API Repository not ready");
+        }
+
+        // CHECK LIBRARY
+        for(Library.LanguageEnum languageProgramming : Library.LanguageEnum.values()){
+            for(Library.TypeEnum libraryType : Library.TypeEnum.values()) {
+                Optional<Library> lib = libraryService.getLibraryByComponentAndLanguageAndType(component, languageProgramming, libraryType);
+                if (lib.isEmpty()) {
+                    inconsistency = new IllegalStateException("Library "+libraryType.getValue()+" / "+languageProgramming.getValue()+" not found ");
+                    createLibrary(component, languageProgramming, libraryType, () -> {});
+                } else if (!libraryService.isReady(lib.get())) {
+                    inconsistency = new IllegalStateException("Library '"+lib.get().getId()+"' not ready ");
+                }
+            }
+        }
+
+        if (inconsistency != null) {
+            throw inconsistency;
+        } else {
+            updateStatus(component, Resource.StatusEnum.READY);
+        }
+    }
 }

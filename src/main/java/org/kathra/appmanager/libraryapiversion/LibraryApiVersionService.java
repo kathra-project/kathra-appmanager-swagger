@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,12 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.libraryapiversion;
 
+import javassist.NotFoundException;
 import org.apache.commons.lang3.StringUtils;
 import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.library.LibraryService;
@@ -38,6 +38,7 @@ import org.kathra.utils.KathraSessionManager;
 import org.kathra.utils.Session;
 
 import java.io.File;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -288,9 +289,7 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
             throw new IllegalArgumentException("LibraryApiVersion is null");
         }
         LibraryApiVersion libraryApiVersionWithDetails = this.getById(libraryApiVersion.getId()).orElseThrow(() -> new IllegalArgumentException("Unable to find LibraryApiVersion with id "+libraryApiVersion.getId()));
-        if (isError(libraryApiVersionWithDetails)) {
-            throw new IllegalArgumentException("LibraryApiVersion has status "+libraryApiVersionWithDetails.getStatus());
-        } else if (!LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersionWithDetails.getApiRepositoryStatus())) {
+        if (!LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersionWithDetails.getApiRepositoryStatus())) {
             throw new IllegalArgumentException("LibraryApiVersion's repository status is not READY");
         } else if (libraryApiVersionWithDetails.getApiVersion() == null) {
             throw new IllegalArgumentException("LibraryApiVersion's ApiVersion is null");
@@ -311,7 +310,7 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
 
         Runnable callbackIfBuildIsFinished = () -> validateBuilding(libraryApiVersionWithDetails, pipeline.get(), callback);
 
-        Build build = pipelineService.build(pipeline.get(), ApiVersionService.DEFAULT_BRANCH, null, callbackIfBuildIsFinished);
+        Build build = pipelineService.build(pipeline.get(), apiVersionWithDetails.getVersion(), null, callbackIfBuildIsFinished);
         libraryApiVersionWithDetails.setPipelineStatus(LibraryApiVersion.PipelineStatusEnum.PENDING);
         libraryApiVersionWithDetails.putMetadataItem(METADATA_LAST_BUILD_NUMBER, build.getBuildNumber());
         patch(libraryApiVersionWithDetails);
@@ -374,5 +373,52 @@ public class LibraryApiVersionService extends AbstractResourceService<LibraryApi
             manageError(libApiVersion, e);
             throw e;
         }
+    }
+
+    public void tryToReconcile(LibraryApiVersion libraryApiVersion) throws Exception {
+
+        if (StringUtils.isEmpty(libraryApiVersion.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (libraryApiVersion.getApiVersion() == null) {
+            throw new IllegalStateException("API undefined");
+        }
+        if (libraryApiVersion.getLibrary() == null) {
+            throw new IllegalStateException("Library undefined");
+        }
+        if (isReady(libraryApiVersion) || isPending(libraryApiVersion) || isDeleted(libraryApiVersion)) {
+            return;
+        }
+
+        ApiVersion apiVersion = apiVersionService.getById(libraryApiVersion.getApiVersion().getId()).orElseThrow(() -> new NotFoundException("ApiVersion not found"));
+        // CHECK SOURCE ARE GENERATED
+        if (!LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersion.getApiRepositoryStatus())) {
+            File fileSpec = apiVersionService.getFile(apiVersion);
+            this.generateAndUpdateSrc(libraryApiVersion, fileSpec, null);
+        }
+        // CHECK PIPELINE
+        else if (!LibraryApiVersion.PipelineStatusEnum.READY.equals(libraryApiVersion.getPipelineStatus())) {
+            Library library = libraryService.getById(libraryApiVersion.getLibrary().getId()).get();
+            Pipeline pipeline = pipelineService.getById(library.getPipeline().getId()).get();
+            List<Build> build = pipelineService.getBuildsByBranch(pipeline, apiVersion.getVersion());
+            Optional<Build> lastBuild = build.stream().sorted(Comparator.comparingLong(Build::getCreationDate).reversed()).findFirst();
+            if (lastBuild.isPresent()) {
+                switch (lastBuild.get().getStatus()) {
+                    case SUCCESS:
+                        libraryApiVersion.pipelineStatus(LibraryApiVersion.PipelineStatusEnum.READY);
+                    case FAILED:
+                        this.build(libraryApiVersion, null);
+                        break;
+                }
+            } else {
+                this.build(libraryApiVersion, null);
+            }
+        }
+
+        if (LibraryApiVersion.ApiRepositoryStatusEnum.READY.equals(libraryApiVersion.getApiRepositoryStatus()) &&
+            LibraryApiVersion.PipelineStatusEnum.READY.equals(libraryApiVersion.getPipelineStatus())) {
+            updateStatus(libraryApiVersion, Resource.StatusEnum.READY);
+        }
+
     }
 }

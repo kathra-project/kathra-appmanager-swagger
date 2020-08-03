@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,14 +14,14 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.implementationversion;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.Disabled;
 import org.kathra.appmanager.apiversion.ApiVersionService;
 import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.implementation.ImplementationService;
@@ -142,7 +142,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
             return build;
         }).when(pipelineService)
                 .build(Mockito.argThat(pipeline -> pipeline.getId().equals(pipelineId)),
-                        Mockito.eq(ImplementationVersionService.DEFAULT_BRANCH),
+                        Mockito.eq(IMPL_VERSION_VERSION),
                         Mockito.eq(ImmutableMap.of("DOCKER_URL","my-registry.com")),
                         Mockito.any());
     }
@@ -333,6 +333,7 @@ public class ImplementationVersionServiceCreateTest extends AbstractServiceTest 
         return ImplementationServiceCreateTest.generateImplementationExample(Implementation.LanguageEnum.JAVA).component(ImplementationServiceCreateTest.getComponent());
     }
 
+    @Disabled
     @Test
     public void given_error_imp_when_create_then_throw_IllegalStateException() throws Exception {
         IllegalStateException exception = assertThrows(IllegalStateException.class, () -> underTest.create(getImplementation().status(Resource.StatusEnum.ERROR), ImplementationServiceCreateTest.getApiVersion(), IMPL_VERSION_VERSION, getCallBack()));

@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.implementationversion;
@@ -42,10 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -144,9 +140,12 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
 
     public ImplementationVersion create(Implementation implementation, ApiVersion apiVersion, String versionImpl, Runnable callback) throws ApiException {
 
+        /*
         if (isError(implementation)) {
             throw new IllegalStateException("Implementation "+implementation.getId()+" has an error");
         }
+
+         */
         if (!implementation.getMetadata().containsKey(ImplementationService.METADATA_ARTIFACT_NAME) || StringUtils.isEmpty((CharSequence) implementation.getMetadata().get(ImplementationService.METADATA_ARTIFACT_NAME))){
             throw new IllegalArgumentException("Implementation's metadata "+ImplementationService.METADATA_ARTIFACT_NAME+" is null or empty");
         }
@@ -270,7 +269,7 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
     }
 
     private Build build(ImplementationVersion implementationVersion, Pipeline pipeline, Runnable callback) throws ApiException {
-        Build build = pipelineService.build(pipeline, DEFAULT_BRANCH, ImmutableMap.of("DOCKER_URL", this.imageRegistryHost), callback);
+        Build build = pipelineService.build(pipeline, implementationVersion.getVersion(), ImmutableMap.of("DOCKER_URL", this.imageRegistryHost), callback);
         implementationVersion.putMetadataItem(METADATA_LAST_BUILD_NUMBER, build.getBuildNumber());
         implementationVersionsClient.updateImplementationVersionAttributes(implementationVersion.getId(), new ImplementationVersion().metadata(implementationVersion.getMetadata()));
         return build;
@@ -288,5 +287,49 @@ public class ImplementationVersionService extends AbstractResourceService<Implem
             manageError(version, e);
             throw e;
         }
+    }
+
+    public void tryToReconcile(ImplementationVersion implementationVersion) throws Exception {
+        if (StringUtils.isEmpty(implementationVersion.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (implementationVersion.getImplementation() == null) {
+            throw new IllegalStateException("Implementation is null");
+        }
+        if (implementationVersion.getApiVersion() == null) {
+            throw new IllegalStateException("ApiVersion is null");
+        }
+        if (isReady(implementationVersion) || isPending(implementationVersion) || isDeleted(implementationVersion)) {
+            return;
+        }
+
+        Implementation implementation = implementationService.getById(implementationVersion.getImplementation().getId()).get();
+        ApiVersion apiVersion = apiVersionService.getById(implementationVersion.getApiVersion().getId()).get();
+        Component component = componentService.getById(apiVersion.getComponent().getId()).orElseThrow(() -> new IllegalArgumentException("Component "+apiVersion.getComponent().getId()+" not found"));
+        SourceRepository apiRepository = sourceRepositoryService.getById(component.getApiRepository().getId()).orElseThrow(() -> new IllegalArgumentException("SourceRepository "+component.getApiRepository().getId()+" not found"));
+
+        File apiFile = sourceRepositoryService.getFile(apiRepository, apiVersion.getVersion(), ApiVersionService.API_FILENAME);
+        if (apiFile == null) {
+            throw new IllegalStateException("ApiFile is null or empty");
+        }
+
+        Pipeline pipeline = getPipeline(implementationVersion);
+        List<Build> build = pipelineService.getBuildsByBranch(pipeline, apiVersion.getVersion());
+        Optional<Build> lastBuild = build.stream().sorted(Comparator.comparingLong(Build::getCreationDate).reversed()).findFirst();
+        if (lastBuild.isPresent()) {
+            switch (lastBuild.get().getStatus()) {
+                case SUCCESS:
+                    this.updateStatus(implementationVersion, Resource.StatusEnum.READY);
+                case FAILED:
+                    generateAndUpdateSrc(implementationVersion.implementation(implementation), apiFile);
+                    build(implementationVersion, pipeline, null);
+                    break;
+            }
+        } else {
+            generateAndUpdateSrc(implementationVersion.implementation(implementation), apiFile);
+            build(implementationVersion, pipeline, null);
+        }
+
+
     }
 }

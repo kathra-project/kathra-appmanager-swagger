@@ -1,5 +1,27 @@
+/*
+ * Copyright (c) 2020. The Kathra Authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * Contributors:
+ *    IRT SystemX (https://www.kathra.org/)
+ *
+ */
+
 package org.kathra.appmanager.catalogentry;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.StringUtils;
 import org.kathra.appmanager.catalogentrypackage.CatalogEntryPackageService;
@@ -17,8 +39,10 @@ import org.kathra.utils.ApiException;
 import org.kathra.utils.KathraSessionManager;
 import org.kathra.utils.Session;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -35,6 +59,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
 
     public static final String METADATA_GROUP_PATH = "groupPath";
     public static final String METADATA_GROUP_ID= "groupId";
+    public static final String METADATA_TEMPLATE= "template";
 
     private ReadCatalogEntriesClient catalogManager;
 
@@ -120,8 +145,11 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         List<CatalogEntryPackage>  packages = new ArrayList<>();
         // CREATE CATALOG ENTRY PACKAGE
         try {
+            List<CatalogEntryPackage> existings = getCatalogEntryPackagesWithDetails(catalogEntry);
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
-                packages.add(catalogEntryPackageService.createPackageFromImplementation(catalogEntry, type, implementation, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
+                if (existings.stream().noneMatch(catalogEntryPackage -> catalogEntryPackage.getPackageType().equals(type))) {
+                    packages.add(catalogEntryPackageService.createPackageFromImplementation(catalogEntry, type, implementation, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
+                }
             }
         } catch(Exception e) {
             manageError(catalogEntry, e);
@@ -129,12 +157,26 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         return packages;
     }
 
+    private List<CatalogEntryPackage> getCatalogEntryPackagesWithDetails(CatalogEntry catalogEntry) {
+        return catalogEntry.getPackages().stream().map(catalogEntryPackage -> {
+                    try {
+                        return this.catalogEntryPackageService.getById(catalogEntryPackage.getId());
+                    } catch (ApiException e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }).filter(catalogEntryPackage -> catalogEntryPackage != null && catalogEntryPackage.isPresent()).map(Optional::get).collect(Collectors.toList());
+    }
+
     private List<CatalogEntryPackage> createPackagesFromDockerImage(String imageRegistry, String imageName, String imageTag, CatalogEntry catalogEntry, Group group) {
         List<CatalogEntryPackage>  packages = new ArrayList<>();
         // CREATE CATALOG ENTRY PACKAGE
         try {
+            List<CatalogEntryPackage> existings = getCatalogEntryPackagesWithDetails(catalogEntry);
             for(CatalogEntryPackage.PackageTypeEnum type : CatalogEntryPackage.PackageTypeEnum.values()){
-                packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
+                if (existings.stream().noneMatch(catalogEntryPackage -> catalogEntryPackage.getPackageType().equals(type))) {
+                    packages.add(catalogEntryPackageService.createPackageFromDockerImage(catalogEntry, type, imageRegistry, imageName, imageTag, group, (catalogEntryPackage) -> onPackageIsReadyOrError(catalogEntryPackage)));
+                }
             }
         } catch(Exception e) {
             manageError(catalogEntry, e);
@@ -192,22 +234,7 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
             }
             final Group group = groupService.findByPath(getValueOrEmpty(template, "GROUP_PATH")).orElseThrow(() -> new IllegalArgumentException("Group not found"));
 
-            Consumer<CatalogEntry> executedPostInsertedInDb;
-            switch(template.getName()) {
-                case "RestApiFromImplementation":
-                    if (StringUtils.isEmpty(getValueOrEmpty(template, "IMPLEMENTATION_ID"))) {
-                        throw new IllegalArgumentException("IMPLEMENTATION_ID should be defined");
-                    }
-                    Implementation implementation = implementationService.getById(getValueOrEmpty(template, "IMPLEMENTATION_ID")).orElseThrow(() -> new IllegalArgumentException("Implementation with id '" + getValueOrEmpty(template, "IMPLEMENTATION_ID") + "' not found"));
-                    executedPostInsertedInDb = (catalogEntry) -> createPackagesFromImplementation(catalogEntry, implementation, group);
-                    break;
-                case "RestApiFromDockerImage":
-                    executedPostInsertedInDb = (catalogEntry) -> createPackagesFromDockerImage(getValueOrEmpty(template, "IMAGE_REGISTRY"), getValueOrEmpty(template, "IMAGE_NAME"), getValueOrEmpty(template, "IMAGE_TAG"), catalogEntry, group);
-                    break;
-                default:
-                    throw new NotImplementedException("Template '"+template.getName()+"' not implemented");
-            }
-
+            final Consumer<CatalogEntry> executedPostInsertedInDb = generateFromTemplate(template, group);
             final CatalogEntry catalogEntry = createInDb(template, group);
             final Session session = kathraSessionManager.getCurrentSession();
             CompletableFuture.runAsync(() -> {
@@ -219,23 +246,41 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         } catch (ApiException e) {
             e.printStackTrace();
             throw e;
+        } catch (JsonProcessingException e) {
+            throw new ApiException(e);
         }
     }
 
-    private CatalogEntry createInDb(CatalogEntryTemplate template, Group group) throws ApiException {
+    private Consumer<CatalogEntry> generateFromTemplate(CatalogEntryTemplate template, Group group) throws ApiException {
+        switch(template.getName()) {
+            case "RestApiFromImplementation":
+                if (StringUtils.isEmpty(getValueOrEmpty(template, "IMPLEMENTATION_ID"))) {
+                    throw new IllegalArgumentException("IMPLEMENTATION_ID should be defined");
+                }
+                Implementation implementation = implementationService.getById(getValueOrEmpty(template, "IMPLEMENTATION_ID")).orElseThrow(() -> new IllegalArgumentException("Implementation with id '" + getValueOrEmpty(template, "IMPLEMENTATION_ID") + "' not found"));
+                return (catalogEntry) -> createPackagesFromImplementation(catalogEntry, implementation, group);
+            case "RestApiFromDockerImage":
+                return (catalogEntry) -> createPackagesFromDockerImage(getValueOrEmpty(template, "IMAGE_REGISTRY"), getValueOrEmpty(template, "IMAGE_NAME"), getValueOrEmpty(template, "IMAGE_TAG"), catalogEntry, group);
+            default:
+                throw new NotImplementedException("Template '"+template.getName()+"' not implemented");
+        }
+    }
+
+    private CatalogEntry createInDb(CatalogEntryTemplate template, Group group) throws ApiException, JsonProcessingException {
         // CREATE CATALOG ENTRY
         CatalogEntry catalogEntryToAdd = new CatalogEntry().name(getValueOrEmpty(template, "NAME"))
                 .packageTemplate(CatalogEntry.PackageTemplateEnum.SERVICE)
                 .description(getValueOrEmpty(template, "DESCRIPTION"))
                 .putMetadataItem(METADATA_GROUP_ID, group.getId())
                 .putMetadataItem(METADATA_GROUP_PATH, group.getPath())
+                .putMetadataItem(METADATA_TEMPLATE, new ObjectMapper().writeValueAsString(template))
                 .status(Resource.StatusEnum.PENDING);
         try {
 
             final CatalogEntry catalogEntryAdded = resourceManager.addCatalogEntry(catalogEntryToAdd);
             try {
                 if (StringUtils.isEmpty(catalogEntryAdded.getId())) {
-                    throw new IllegalStateException("Component'id should be defined");
+                    throw new IllegalStateException("Component's id should be defined");
                 } else if (StringUtils.isEmpty((CharSequence) catalogEntryAdded.getMetadata().get("groupId"))) {
                     throw new IllegalStateException("Metadata '" + METADATA_GROUP_ID + "' of component should be defined");
                 } else if (StringUtils.isEmpty((CharSequence) catalogEntryAdded.getMetadata().get("groupPath"))) {
@@ -252,4 +297,29 @@ public class CatalogEntryService extends AbstractResourceService<CatalogEntry> {
         }
     }
 
+    public void tryToReconcile(CatalogEntry entry) throws Exception {
+
+        if (StringUtils.isEmpty(entry.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (entry.getPackageTemplate() == null) {
+            throw new IllegalStateException("Package template is null");
+        }
+        if (isReady(entry) || isPending(entry) || isDeleted(entry)) {
+            return;
+        }
+
+        final Group group = groupService.getById((String) entry.getMetadata().get(METADATA_GROUP_ID)).orElseThrow(() -> new IllegalArgumentException("Group not found"));
+        final Consumer<CatalogEntry> executedPostInsertedInDb = generateFromTemplate(new ObjectMapper().readValue(((String) entry.getMetadata().get(METADATA_TEMPLATE)), CatalogEntryTemplate.class), group);
+        executedPostInsertedInDb.accept(entry);
+
+        CatalogEntry entryUpdated = this.getById(entry.getId()).get();
+        List<CatalogEntryPackage> catalogEntryPackages = getCatalogEntryPackagesWithDetails(entryUpdated);
+        for(CatalogEntryPackage catalogEntryPackage : catalogEntryPackages) {
+            if (!this.catalogEntryPackageService.isReady(catalogEntryPackage)) {
+                throw new Exception("CatalogEntryPackage is not ready");
+            }
+        }
+        this.updateStatus(entry, Resource.StatusEnum.READY);
+    }
 }

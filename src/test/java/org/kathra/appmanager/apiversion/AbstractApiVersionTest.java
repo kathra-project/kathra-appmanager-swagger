@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.apiversion;
@@ -171,7 +170,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
                 .pipeline(pipeline)
                 .sourceRepository(sourceRepository);
         try {
-            Mockito.doAnswer(invocationOnMock -> Optional.of(sourceRepository)).when(sourceRepositoryService).getById(Mockito.eq(sourceRepository.getId()));
+            Mockito.when(sourceRepositoryService.getById(Mockito.eq(sourceRepository.getId()))).thenReturn(Optional.of(sourceRepository));
             Mockito.when(libraryService.getById(Mockito.eq(library.getId()))).thenReturn(Optional.of(copy(library)));
         } catch (ApiException e) {
             e.printStackTrace();

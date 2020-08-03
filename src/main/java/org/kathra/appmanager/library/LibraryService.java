@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.library;
@@ -33,6 +32,7 @@ import org.kathra.utils.KathraSessionManager;
 import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -76,17 +76,17 @@ public class LibraryService extends AbstractResourceService<Library> {
             return Optional.empty();
         }
 
-        Optional<Library> exist = componentWithDetails.getLibraries().parallelStream().filter(lib -> {
+        Optional<Library> exist = componentWithDetails.getLibraries().parallelStream().map(lib -> {
             try {
                 kathraSessionManager.handleSession(session);
                 Library libWithDetails = resourceManager.getLibrary(lib.getId());
-                return libWithDetails.getLanguage().equals(languageProgramming) && libWithDetails.getType().equals(typeLib);
+                return libWithDetails.getLanguage().equals(languageProgramming) && libWithDetails.getType().equals(typeLib) ? libWithDetails : null;
             } catch (ApiException e) {
                 e.printStackTrace();
                 exception.set(e);
-                return false;
+                return null;
             }
-        }).findFirst();
+        }).filter(Objects::nonNull).findFirst();
 
         if (exception.get() != null) {
             throw exception.get();
@@ -273,6 +273,48 @@ public class LibraryService extends AbstractResourceService<Library> {
         } catch (ApiException e) {
             manageError(library, e);
             throw e;
+        }
+    }
+
+    public void tryToReconcile(Library library) throws Exception {
+
+        if (StringUtils.isEmpty(library.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (isReady(library) || isPending(library) || isDeleted(library)) {
+            return;
+        }
+
+        // CHECK REPO
+        Optional<SourceRepository> sourceRepository = Optional.empty();
+        if (library.getSourceRepository() != null && library.getSourceRepository().getId() != null) {
+            sourceRepository = sourceRepositoryService.getById(library.getSourceRepository().getId());
+        }
+        Exception inconsistency = null;
+        if (sourceRepository.isEmpty()) {
+            sourceRepositoryService.createLibraryRepository(library, () -> {});
+            throw new IllegalStateException("Source repository missing");
+        } else if (!sourceRepositoryService.isReady(sourceRepository.get())) {
+            inconsistency = new IllegalStateException("Library source repository '"+sourceRepository.get().getId()+"' not ready");
+        }
+
+
+        // CHECK PIPELINE
+        Optional<Pipeline> pipeline = Optional.empty();
+        if (library.getPipeline() != null && library.getPipeline().getId() != null) {
+            pipeline = pipelineService.getById(library.getPipeline().getId());
+        }
+        if (pipeline.isEmpty()) {
+            inconsistency = new IllegalStateException("Library pipeline missing");
+            pipelineService.createLibraryPipeline(library, () -> {});
+        } else if (!pipelineService.isReady(pipeline.get())) {
+            inconsistency = new IllegalStateException("Library pipeline '"+pipeline.get().getId()+"' not ready");
+        }
+
+        if (inconsistency != null) {
+            throw inconsistency;
+        } else {
+            updateStatus(library, Resource.StatusEnum.READY);
         }
     }
 }

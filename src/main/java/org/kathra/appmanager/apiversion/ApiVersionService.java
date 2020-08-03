@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.apiversion;
@@ -101,6 +100,16 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         }
         Component component = componentService.getById(componentId).orElseThrow(() -> new IllegalArgumentException("Component '" + componentId + "' doesn't exist"));
         return create(component, apiFile, callback);
+    }
+
+    public File getFile(ApiVersion apiVersion) throws ApiException, NotFoundException {
+        Component component = componentService.getById(apiVersion.getComponent().getId()).orElseThrow(() -> new NotFoundException("Component not found"));
+        SourceRepository sourceRepository =  sourceRepositoryService.getById(component.getApiRepository().getId()).orElseThrow(() -> new NotFoundException("Component not found"));
+        try {
+            return sourceRepositoryService.getFile(sourceRepository, apiVersion.getVersion(), "swagger.yaml");
+        } catch(Exception e) {
+            return sourceRepositoryService.getFile(sourceRepository, apiVersion.getVersion(), "swagger.yml");
+        }
     }
 
     public ApiVersion create(Component component, File apiFile, Runnable callback) throws ApiException, IOException {
@@ -662,4 +671,53 @@ public class ApiVersionService extends AbstractResourceService<ApiVersion> {
         }
 
     }
+
+    public void tryToReconcile(ApiVersion apiVersion) throws Exception {
+        if (StringUtils.isEmpty(apiVersion.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (apiVersion.getComponent() == null) {
+            throw new IllegalStateException("Component is null");
+        }
+
+        if (isReady(apiVersion) || isPending(apiVersion) || isDeleted(apiVersion)) {
+            return;
+        }
+
+        if (!apiVersion.getApiRepositoryStatus().equals(ApiVersion.ApiRepositoryStatusEnum.READY)) {
+            throw new IllegalStateException("Source not updated, impossible to reconcile this ApiVersion");
+        }
+        Component component = componentService.getById(apiVersion.getComponent().getId()).orElseThrow(() -> new IllegalArgumentException("Component "+apiVersion.getComponent().getId()+" not found"));
+
+        List<LibraryApiVersion> libraryApiVersions = new ArrayList<>();
+        for(LibraryApiVersion libraryApiVersion:apiVersion.getLibrariesApiVersions()) {
+            libraryApiVersions.add(libraryApiVersionService.getById(libraryApiVersion.getId()).orElseThrow(() -> new Exception("LibraryApiVersion not found")));
+        }
+
+
+        Exception missingLibrary = null;
+        File apiFile = null;
+        for(Library library:component.getLibraries()) {
+            Library libraryWithDetails = libraryService.getById(library.getId()).orElseThrow(() -> new Exception("Library not found"));
+
+            // IF LIBRARY API VERSION NOT EXISTS, CREATE NEW ONE
+            if (libraryApiVersions.stream().noneMatch(libraryApiVersion -> libraryApiVersion.getLibrary().getId().equals(libraryWithDetails.getId()))) {
+                missingLibrary = new Exception("LibraryApiVersion not found");
+                if (apiFile == null) {
+                    apiFile = this.getFile(apiVersion);
+                }
+                createLibraryApiVersion(apiVersion, libraryWithDetails, apiFile, null);
+            }
+        }
+        if (missingLibrary != null) {
+            throw missingLibrary;
+        }
+
+        if (libraryApiVersions.stream().anyMatch(libraryApiVersion -> !libraryApiVersionService.isReady(libraryApiVersion))) {
+            throw new Exception("Some LibraryApiVersion are not ready");
+        }
+
+        updateStatus(apiVersion, Resource.StatusEnum.READY);
+    }
+
 }

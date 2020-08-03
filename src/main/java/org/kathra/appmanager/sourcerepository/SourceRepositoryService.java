@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,8 +14,7 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.sourcerepository;
@@ -41,6 +40,8 @@ import java.util.concurrent.CompletableFuture;
  * @author julien.boubechtoula
  */
 public class SourceRepositoryService extends AbstractResourceService<SourceRepository> {
+
+    private final String METADATA_DEPLOY_KEYS = "deployKey";
 
     private SourceManagerClient sourceManagerClient;
     private SourceRepositoriesClient resourceManager;
@@ -129,8 +130,11 @@ public class SourceRepositoryService extends AbstractResourceService<SourceRepos
     }
 
     public SourceRepository create(String name, String path, String[] deploysKeys, Runnable callback) throws ApiException {
-        SourceRepository sourceRepositoryToAdd = new SourceRepository().name(name).path(path);
-        final SourceRepository sourceRepository;
+
+        SourceRepository sourceRepositoryToAdd = new SourceRepository()
+                .name(name)
+                .path(path)
+                .putMetadataItem(METADATA_DEPLOY_KEYS, String.join(";", deploysKeys));
 
         if (StringUtils.isEmpty(name)) {
             throw new IllegalArgumentException("SourceRepository's name is null or empty");
@@ -145,20 +149,13 @@ public class SourceRepositoryService extends AbstractResourceService<SourceRepos
         }
 
         try {
-            sourceRepository = resourceManager.addSourceRepository(sourceRepositoryToAdd);
+            final SourceRepository sourceRepository = resourceManager.addSourceRepository(sourceRepositoryToAdd);
 
             final Session session = kathraSessionManager.getCurrentSession();
             CompletableFuture.runAsync(() -> {
                 try {
                     kathraSessionManager.handleSession(session);
-                    SourceRepository sourceRepositoryWithInfoSourceManager = sourceManagerClient.createSourceRepository(sourceRepository, Arrays.asList(deploysKeys));
-                    //override uuid
-                    sourceRepositoryWithInfoSourceManager.setId(sourceRepository.getId());
-                    sourceRepositoryWithInfoSourceManager.setPath(sourceRepository.getName());
-                    sourceRepositoryWithInfoSourceManager.setPath(sourceRepository.getPath());
-                    sourceRepositoryWithInfoSourceManager.setStatus(Resource.StatusEnum.READY);
-
-                    patch(sourceRepositoryWithInfoSourceManager);
+                    createRepository(sourceRepository, deploysKeys);
                 } catch (Exception e) {
                     manageError(sourceRepository, e);
                 } finally {
@@ -178,6 +175,37 @@ public class SourceRepositoryService extends AbstractResourceService<SourceRepos
             manageError(sourceRepositoryToAdd, e);
             throw e;
         }
+    }
+
+    private void createRepository(SourceRepository sourceRepository, String[] deploysKeys) throws ApiException {
+        SourceRepository sourceRepositoryWithInfoSourceManager = null;
+        int attempt=0;
+        int maxRetry=3;
+        ApiException exception = null;
+        do {
+            try {
+                sourceRepositoryWithInfoSourceManager = sourceManagerClient.createSourceRepository(sourceRepository, Arrays.asList(deploysKeys));
+            } catch (ApiException e) {
+                attempt++;
+                exception = e;
+                logger.warn("Unable to create repository wait and try again "+attempt+"/"+maxRetry);
+                try {Thread.sleep(2000);} catch (InterruptedException ex) { }
+            }
+        } while(sourceRepositoryWithInfoSourceManager == null && attempt < maxRetry);
+        if (sourceRepositoryWithInfoSourceManager == null) {
+            throw exception;
+        }
+        patch(new SourceRepository()
+                .id(sourceRepository.getId())
+                .name(sourceRepository.getName())
+                .path(sourceRepository.getPath())
+                .status(Resource.StatusEnum.READY)
+                .branchs(sourceRepositoryWithInfoSourceManager.getBranchs())
+                .sshUrl(sourceRepositoryWithInfoSourceManager.getSshUrl())
+                .webUrl(sourceRepositoryWithInfoSourceManager.getWebUrl())
+                .httpUrl(sourceRepositoryWithInfoSourceManager.getHttpUrl())
+                .provider(sourceRepositoryWithInfoSourceManager.getProviderId())
+                .providerId(sourceRepositoryWithInfoSourceManager.getProviderId()));
     }
 
     public SourceRepositoryCommit commitFileAndTag(SourceRepository sourceRepository, String branch, File file, String filename, String tag) throws ApiException {
@@ -272,5 +300,21 @@ public class SourceRepositoryService extends AbstractResourceService<SourceRepos
             manageError(sourceRepository, e);
             throw e;
         }
+    }
+
+    public void tryToReconcile(SourceRepository sourceRepository) throws ApiException {
+        if (StringUtils.isEmpty(sourceRepository.getPath())) {
+            throw new IllegalStateException("Path null or empty");
+        } else if (StringUtils.isEmpty(sourceRepository.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+
+        if (isReady(sourceRepository) || isPending(sourceRepository) || isDeleted(sourceRepository)) {
+            return;
+        }
+
+        String[] deployKey = ((String) sourceRepository.getMetadata().get(METADATA_DEPLOY_KEYS)).split(";");
+        createRepository(sourceRepository, deployKey);
+
     }
 }

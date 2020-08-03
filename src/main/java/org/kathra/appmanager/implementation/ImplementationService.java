@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,15 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.implementation;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.kathra.appmanager.apiversion.ApiVersionService;
+import org.kathra.appmanager.binaryrepository.BinaryRepositoryService;
 import org.kathra.appmanager.catalogentry.CatalogEntryService;
 import org.kathra.appmanager.component.ComponentService;
 import org.kathra.appmanager.group.GroupService;
@@ -69,12 +71,14 @@ public class ImplementationService extends AbstractResourceService<Implementatio
     private ApiVersionService apiVersionService;
     private ComponentService componentService;
     private SourceRepositoryService sourceRepositoryService;
+    private BinaryRepositoryService binaryRepositoryService;
     private PipelineService pipelineService;
     private ImplementationsClient resourceManager;
     private ImplementationVersionService implementationVersionService;
 
     private GroupService groupService;
     private CatalogEntryService catalogEntryService;
+    private String imageRegistryHost;
 
     public ImplementationService() {
 
@@ -89,10 +93,13 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         this.implementationVersionService = serviceInjection.getService(ImplementationVersionService.class);
         this.pipelineService = serviceInjection.getService(PipelineService.class);
         this.catalogEntryService = serviceInjection.getService(CatalogEntryService.class);
+        this.groupService = serviceInjection.getService(GroupService.class);
+        this.imageRegistryHost = serviceInjection.getConfig().getImageRegistryHost();
+        this.binaryRepositoryService = serviceInjection.getService(BinaryRepositoryService.class);
     }
 
 
-    public ImplementationService(ComponentService componentService, ApiVersionService apiVersionService, SourceRepositoryService sourceRepositoryService, ImplementationVersionService implementationVersionService, ImplementationsClient resourceManager, PipelineService pipelineService, KathraSessionManager kathraSessionManager, CatalogEntryService catalogEntryService) {
+    public ImplementationService(ComponentService componentService, ApiVersionService apiVersionService, SourceRepositoryService sourceRepositoryService, ImplementationVersionService implementationVersionService, ImplementationsClient resourceManager, PipelineService pipelineService, KathraSessionManager kathraSessionManager, CatalogEntryService catalogEntryService, BinaryRepositoryService binaryRepositoryService, GroupService groupService, String imageRegistryHost) {
         // Init with clients and services
         this.componentService = componentService;
         this.apiVersionService = apiVersionService;
@@ -102,6 +109,9 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         this.pipelineService = pipelineService;
         super.kathraSessionManager = kathraSessionManager;
         this.catalogEntryService = catalogEntryService;
+        this.groupService = groupService;
+        this.imageRegistryHost = imageRegistryHost;
+        this.binaryRepositoryService = binaryRepositoryService;
     }
 
     public Implementation create(@NotNull String name, Implementation.LanguageEnum language, ApiVersion apiVersion, String description) throws ApiException {
@@ -139,9 +149,13 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         String artifactName = getArtifactName(name);
         String artifactGroupId = (String) componentWithDetails.getMetadata().get(ComponentService.METADATA_API_GROUP_ID);
 
-        Implementation impl = resourceManager.addImplementation(new Implementation().name(name)
+        Group group = this.groupService.getById((String)(componentWithDetails.getMetadata().get(ComponentService.METADATA_GROUP_ID))).get();
+        BinaryRepository binaryRepository = binaryRepositoryService.getBinaryRepositoryFromGroupAndType(group, BinaryRepository.TypeEnum.DOCKER_IMAGE).get(0);
+
+        final Implementation impl = resourceManager.addImplementation(new Implementation().name(name)
                 .component(componentWithDetails)
                 .language(language)
+                .binaryRepository(binaryRepository)
                 .status(Resource.StatusEnum.PENDING)
                 .description(description==null?"":description)
                 .putMetadataItem(METADATA_PATH, path)
@@ -151,14 +165,55 @@ public class ImplementationService extends AbstractResourceService<Implementatio
                 .putMetadataItem(METADATA_ARTIFACT_NAME, artifactName)
                 .putMetadataItem(METADATA_ARTIFACT_GROUP_ID, artifactGroupId));
 
+
+
         final Session session = kathraSessionManager.getCurrentSession();
-        CompletableFuture.runAsync(() -> {
+
+        // ON PIPELINE READY
+        Runnable onPipelineReady = () -> {
             try {
                 kathraSessionManager.handleSession(session);
-                createSourceRepository(impl, apiVersionWithDetails);
-            } finally {
-                //kathraSessionManager.deleteSession();
+                final Implementation implementationWithDetails = resourceManager.getImplementation(impl.getId());
+                if (isError(implementationWithDetails)) {
+                    return;
+                }
+                Pipeline pipeline = pipelineService.getById(implementationWithDetails.getPipeline().getId()).orElseThrow(() -> new IllegalStateException("Unable to find Pipeline " + implementationWithDetails.getPipeline().getId()));
+                switch (pipeline.getStatus()) {
+                    case READY:
+                        createFirstImplementationVersion(implementationWithDetails, apiVersion);
+                        break;
+                    default:
+                        throw new IllegalStateException("Pipeline '" + pipeline.getId() + "' is not READY");
+                }
+            } catch (Exception e) {
+                manageError(impl, e);
             }
+        };
+
+        // ON REPOSITORY READY
+        Runnable onRepositoryReady = () -> {
+            kathraSessionManager.handleSession(session);
+            try {
+                final Implementation implementationWithDetails = resourceManager.getImplementation(impl.getId());
+                if (isError(implementationWithDetails)) {
+                    return;
+                }
+                SourceRepository sourceRepository = sourceRepositoryService.getById(implementationWithDetails.getSourceRepository().getId()).orElseThrow(() -> new IllegalStateException("Unable to find SourceRepository " + implementationWithDetails.getSourceRepository().getId()));
+                switch (sourceRepository.getStatus()) {
+                    case READY:
+                        createPipeline(implementationWithDetails, onPipelineReady);
+                        break;
+                    default:
+                        throw new IllegalStateException("SourceRepository '" + sourceRepository.getId() + "' is not READY");
+                }
+            } catch (ApiException e) {
+                manageError(impl, e);
+            }
+        };
+
+        CompletableFuture.runAsync(() -> {
+            kathraSessionManager.handleSession(session);
+            createSourceRepository(impl, onRepositoryReady);
         });
         return impl;
     }
@@ -167,39 +222,17 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         return implementationName.toLowerCase().replaceAll("[^a-z]*", "");
     }
 
-    public void createSourceRepository(final Implementation implementation, final ApiVersion apiVersion) {
+    public void createSourceRepository(final Implementation implementation, Runnable onRepositoryReady) {
         try {
-            final Session session = kathraSessionManager.getCurrentSession();
-            Runnable callback = () -> {
-                kathraSessionManager.handleSession(session);
-                try {
-                    Implementation implementationWithDetails = resourceManager.getImplementation(implementation.getId());
-                    if (isError(implementationWithDetails)) {
-                        return;
-                    }
-                    SourceRepository sourceRepository = sourceRepositoryService.getById(implementationWithDetails.getSourceRepository().getId()).orElseThrow(() -> new IllegalStateException("Unable to find SourceRepository " + implementationWithDetails.getSourceRepository().getId()));
-                    switch (sourceRepository.getStatus()) {
-                        case READY:
-                            createPipeline(implementationWithDetails, apiVersion);
-                            break;
-                        default:
-                            throw new IllegalStateException("SourceRepository '" + sourceRepository.getId() + "' is not READY");
-                    }
-                } catch (ApiException e) {
-                    manageError(implementation, e);
-                } finally {
-                    //kathraSessionManager.deleteSession();
-                }
-            };
             String[] deployKeys = {(String) implementation.getMetadata().get(METADATA_DEPLOY_KEY)};
-            SourceRepository src = sourceRepositoryService.create("impl-" + implementation.getName(), (String) implementation.getMetadata().get(METADATA_PATH), deployKeys, callback);
+            SourceRepository src = sourceRepositoryService.create("impl-" + implementation.getName(), (String) implementation.getMetadata().get(METADATA_PATH), deployKeys, onRepositoryReady);
             patch(new Implementation().id(implementation.getId()).sourceRepository(src));
         } catch (Exception e) {
             manageError(implementation, e);
         }
     }
 
-    private void createPipeline(final Implementation implementation, final ApiVersion apiVersion) {
+    private void createPipeline(final Implementation implementation, Runnable callback) {
 
         final Pipeline.TemplateEnum template = getTemplateFromImplementation(implementation);
         final String pathPipeline = (String) implementation.getMetadata().get(METADATA_PATH);
@@ -207,30 +240,8 @@ public class ImplementationService extends AbstractResourceService<Implementatio
         final SourceRepository sourceRepository;
         try {
             sourceRepository = sourceRepositoryService.getById(implementation.getSourceRepository().getId()).orElseThrow(() -> new IllegalStateException("Unable to find SourceRepository '" + implementation.getSourceRepository().getId() + "'"));
-            final Session session = kathraSessionManager.getCurrentSession();
-            Runnable callback = () -> {
-                try {
-                    kathraSessionManager.handleSession(session);
-                    Implementation implementationWithDetails = resourceManager.getImplementation(implementation.getId());
-                    if (isError(implementationWithDetails)) {
-                        return;
-                    }
-                    Pipeline pipeline = pipelineService.getById(implementationWithDetails.getPipeline().getId()).orElseThrow(() -> new IllegalStateException("Unable to find Pipeline " + implementationWithDetails.getPipeline().getId()));
-                    switch (pipeline.getStatus()) {
-                        case READY:
-                            createFirstImplementationVersion(implementationWithDetails, apiVersion);
-                            break;
-                        default:
-                            throw new IllegalStateException("Pipeline '" + pipeline.getId() + "' is not READY");
-                    }
-                } catch (Exception e) {
-                    manageError(implementation, e);
-                } finally {
-                   // kathraSessionManager.deleteSession();
-                }
-            };
-
-            Pipeline pipeline = pipelineService.create(implementation.getName(), pathPipeline, sourceRepository, template, credentialId, callback);
+            Map<String, Object> args = ImmutableMap.of("dockerBinaryRepositoryHost", this.imageRegistryHost);
+            Pipeline pipeline = pipelineService.create(implementation.getName(), pathPipeline, sourceRepository, template, credentialId, callback, args);
             patch(new Implementation().id(implementation.getId()).pipeline(pipeline));
         } catch (Exception e) {
             manageError(implementation, e);
@@ -269,8 +280,6 @@ public class ImplementationService extends AbstractResourceService<Implementatio
                 }
             } catch (Exception e) {
                 manageError(implementationWithDetails, e);
-            } finally {
-                //kathraSessionManager.deleteSession();
             }
         };
         try {
@@ -376,6 +385,74 @@ public class ImplementationService extends AbstractResourceService<Implementatio
             manageError(implementation, e);
             throw e;
         }
+    }
+
+    public void tryToReconcile(Implementation implementation) throws Exception {
+        if (StringUtils.isEmpty(implementation.getName())) {
+            throw new IllegalStateException("Name null or empty");
+        }
+        if (implementation.getLanguage() == null) {
+            throw new IllegalStateException("Language null or empty");
+        }
+        if (implementation.getComponent() == null) {
+            throw new IllegalStateException("Component null or empty");
+        }
+        if (isReady(implementation) || isPending(implementation) || isDeleted(implementation)) {
+            return;
+        }
+
+        // CHECK SOURCE REPOSITORY
+        Optional<SourceRepository> sourceRepository = Optional.empty();
+        if (implementation.getSourceRepository() != null && implementation.getSourceRepository().getId() != null) {
+            sourceRepository = sourceRepositoryService.getById(implementation.getSourceRepository().getId());
+        }
+        if (sourceRepository.isEmpty()) {
+            createSourceRepository(implementation, () -> {});
+            throw new IllegalStateException("Source repository missing, create new one");
+        } else if (!sourceRepositoryService.isReady(sourceRepository.get())) {
+            throw new IllegalStateException("Library source repository '"+sourceRepository.get().getId()+"' not ready");
+        }
+
+
+        // CHECK PIPELINE
+        Optional<Pipeline> pipeline = Optional.empty();
+        if (implementation.getPipeline() != null && implementation.getPipeline().getId() != null) {
+            pipeline = pipelineService.getById(implementation.getPipeline().getId());
+        }
+        if (pipeline.isEmpty()) {
+            createPipeline(implementation, () -> {});
+            throw new IllegalStateException("Pipeline missing, create new one");
+        } else if (!pipelineService.isReady(pipeline.get())) {
+            throw new IllegalStateException("Library pipeline '"+pipeline.get().getId()+"' not ready");
+        }
+
+
+        // CHECK FIRST VERSION
+        final Session session = kathraSessionManager.getCurrentSession();
+        Optional<ImplementationVersion> firstImpl = implementation.getVersions().stream().map(version -> {
+            kathraSessionManager.handleSession(session);
+            try {
+                return this.implementationVersionService.getById(version.getId());
+            } catch (ApiException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }).filter(implementationVersion -> implementationVersion != null && implementationVersion.isPresent() && implementationVersion.get().getVersion().equals(FIRST_VERSION)).map(Optional::get).findFirst();
+        if (firstImpl.isEmpty()) {
+            ApiVersion apiVersion = this.componentService.getById(implementation.getComponent().getId()).get().getVersions().get(0);
+            ApiVersion apiVersionWithDetails = this.apiVersionService.getById(apiVersion.getId()).get();
+            this.createFirstImplementationVersion(implementation, apiVersionWithDetails);
+            throw new IllegalStateException("Implementation version not exist, create new one from version "+apiVersion.getVersion());
+        } else if (!this.implementationVersionService.isReady(firstImpl.get())) {
+            throw new IllegalStateException("First version of implementation is not ready");
+        }
+
+        // CHECK CATALOG
+        if (implementation.getCatalogEntries().isEmpty()) {
+            this.initCatalogEntryService(implementation);
+        }
+
+        updateStatus(implementation, Resource.StatusEnum.READY);
     }
 }
 

@@ -1,5 +1,5 @@
-/* 
- * Copyright 2019 The Kathra Authors.
+/*
+ * Copyright (c) 2020. The Kathra Authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,13 @@
  * limitations under the License.
  *
  * Contributors:
- *
- *    IRT SystemX (https://www.kathra.org/)    
+ *    IRT SystemX (https://www.kathra.org/)
  *
  */
 package org.kathra.appmanager.sourcerepository;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.kathra.appmanager.component.ComponentServiceTest;
 import org.kathra.core.model.Asset;
 import org.kathra.core.model.Component;
@@ -37,6 +38,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -77,7 +79,7 @@ public class SourceRepositoryServiceCreateFromLibraryTest extends SourceReposito
     protected void mockNominalBehaviorToCreateLibraryRepository() throws ApiException {
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, library.getName(), repositoryPathExpected);
         mockPatchResourceManager(sourceRepositoryDb);
-        mockCreateRepositoryIntoSourceManager(deploysKeys, getSourceRepositoryFromSourceManager(sourceRepositoryDb), 500);
+        mockCreateRepositoryIntoSourceManager(Arrays.asList(deploysKeys), getSourceRepositoryFromSourceManager(sourceRepositoryDb), 500);
         mockComponent();
     }
 
@@ -203,7 +205,7 @@ public class SourceRepositoryServiceCreateFromLibraryTest extends SourceReposito
         mockComponent();
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, library.getName(), repositoryPathExpected);
         mockPatchResourceManager(sourceRepositoryDb);
-        mockCreateRepositoryIntoSourceManagerWithError(deployKey, new ApiException("Unable to create repository"), 500);
+        mockCreateRepositoryIntoSourceManagerWithError(ImmutableList.of(ComponentServiceTest.GROUP_ID), new ApiException("Unable to create repository"), 500);
 
         SourceRepository sourceRepository = underTest.createLibraryRepository(library, callback);
 
@@ -211,7 +213,7 @@ public class SourceRepositoryServiceCreateFromLibraryTest extends SourceReposito
 
         Mockito.verify(libraryService).patch(Mockito.argThat(lib -> lib.getId().equals(library.getId()) && lib.getSourceRepository().equals(sourceRepository)));
 
-        waitUntilSrcRepositoryIsNotPending(1000);
+        waitUntilSrcRepositoryIsNotPending(15000);
         sourceRepositoryIsError(sourceRepositoryDb.getId());
         super.callbackIsCalled(true);
     }
@@ -222,7 +224,7 @@ public class SourceRepositoryServiceCreateFromLibraryTest extends SourceReposito
         mockComponent();
         mockCreateAndGetFromResourceManager(sourceRepositoryDb, library.getName(), repositoryPathExpected);
         mockPatchResourceManagerWithError(new Exception("Patch error"), sourceRepositoryDb);
-        mockCreateRepositoryIntoSourceManager(deploysKeys, getSourceRepositoryFromSourceManager(sourceRepositoryDb), 500);
+        mockCreateRepositoryIntoSourceManager(ImmutableList.of(ComponentServiceTest.GROUP_ID), getSourceRepositoryFromSourceManager(sourceRepositoryDb), 500);
 
         SourceRepository sourceRepository = underTest.createLibraryRepository(library, callback);
 
