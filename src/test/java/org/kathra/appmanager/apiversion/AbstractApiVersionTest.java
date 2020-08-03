@@ -170,7 +170,7 @@ public abstract class AbstractApiVersionTest extends AbstractServiceTest {
                 .pipeline(pipeline)
                 .sourceRepository(sourceRepository);
         try {
-            Mockito.doAnswer(invocationOnMock -> Optional.of(sourceRepository)).when(sourceRepositoryService).getById(Mockito.eq(sourceRepository.getId()));
+            Mockito.when(sourceRepositoryService.getById(Mockito.eq(sourceRepository.getId()))).thenReturn(Optional.of(sourceRepository));
             Mockito.when(libraryService.getById(Mockito.eq(library.getId()))).thenReturn(Optional.of(copy(library)));
         } catch (ApiException e) {
             e.printStackTrace();
