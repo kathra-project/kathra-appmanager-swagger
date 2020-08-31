@@ -29,12 +29,12 @@
     <artifactId>kathra-appmanager-swagger</artifactId>
     <packaging>jar</packaging>
     <name>KATHRA :: AppManager :: Swagger</name>
-    <version>1.2.0</version>
+    <version>1.3.0-SNAPSHOT</version>
 
     <parent>
         <groupId>org.kathra</groupId>
         <artifactId>kathra-exec-parent</artifactId>
-        <version>1.2.0</version>
+        <version>1.3.0-SNAPSHOT</version>
     </parent>
 
     <repositories>
@@ -79,32 +79,32 @@
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-appmanager-interface</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-binaryrepositorymanager-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-sourcemanager-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-pipelinemanager-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-codegen-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-resourcemanager-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>io.swagger</groupId>
@@ -143,7 +143,7 @@
         <dependency>
             <groupId>org.kathra</groupId>
             <artifactId>kathra-catalogmanager-client</artifactId>
-            <version>1.2.0</version>
+            <version>1.3.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
 
