@@ -70,7 +70,7 @@ public class CatalogEntryPackageService extends AbstractResourceService<CatalogE
     public static final String METADATA_GROUP_ID = "groupId";
     public static final String METADATA_GROUP_PATH = "groupPath";
     public static final String METADATA_CODEGEN_TEMPLATE = "codeGenTemplate";
-    public static final String METADATA_CODEGEN_PROVIDER = "codeGenTemplate";
+    public static final String METADATA_CODEGEN_PROVIDER = "codeGenProvider";
     public static final String METADATA_PIPELINE_TEMPLATE = "pipelineTemplate";
 
     public CatalogEntryPackageService() {
